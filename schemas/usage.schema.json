@@ -1,0 +1,315 @@
+{
+  "$defs": {
+    "EnvironmentUsage": {
+      "additionalProperties": false,
+      "description": "Runtime and usage assumptions for one environment.",
+      "properties": {
+        "drivers": {
+          "$ref": "#/$defs/UsageDrivers"
+        },
+        "expected_lifetime_hours": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Lifetime Hours"
+        },
+        "monthly_hours": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Monthly Hours"
+        },
+        "schedule": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schedule"
+        }
+      },
+      "title": "EnvironmentUsage",
+      "type": "object"
+    },
+    "Quantity": {
+      "additionalProperties": false,
+      "description": "A usage figure, optionally expressed as a range.\n\nAccepts either a scalar (``200000``) or a mapping\n(``{min: 5000, expected: 20000, max: 100000}``). A range is what lets a report show\na span instead of inventing a precision the user never claimed.",
+      "properties": {
+        "expected": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Expected"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        }
+      },
+      "required": [
+        "expected"
+      ],
+      "title": "Quantity",
+      "type": "object"
+    },
+    "UsageDrivers": {
+      "additionalProperties": false,
+      "description": "The closed set of usage figures an estimator may consume.\n\nAdding a driver is a code change, deliberately: the same reasoning as the policy\npredicate vocabulary in ADR 0006. A configuration file cannot introduce a driver\nthat no estimator reads.",
+      "properties": {
+        "allocated_memory_mb": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "average_duration_ms": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "dynamodb_read_requests_per_month": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "dynamodb_storage_gb": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "dynamodb_write_requests_per_month": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "inter_az_data_gb": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "invocations_per_month": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "log_ingestion_gb": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "log_retention_days": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "nat_processed_gb": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "outbound_data_gb": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "requests_per_month": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "s3_get_requests_per_month": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "s3_put_requests_per_month": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "storage_gb": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "UsageDrivers",
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/lapczyna/aws-cost-aware-deployment-gate/schemas/v1/usage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A version-controlled set of usage assumptions.",
+  "properties": {
+    "defaults": {
+      "$ref": "#/$defs/EnvironmentUsage"
+    },
+    "environments": {
+      "additionalProperties": {
+        "$ref": "#/$defs/EnvironmentUsage"
+      },
+      "title": "Environments",
+      "type": "object"
+    },
+    "resource_overrides": {
+      "additionalProperties": {
+        "$ref": "#/$defs/EnvironmentUsage"
+      },
+      "title": "Resource Overrides",
+      "type": "object"
+    },
+    "version": {
+      "const": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "title": "cost-gate usage profile",
+  "type": "object",
+  "x-cost-gate-schema-version": "1",
+  "x-generated-from": "cost_gate.config.usage.UsageProfileConfig",
+  "x-mode": "validation"
+}

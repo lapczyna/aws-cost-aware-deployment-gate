@@ -1,0 +1,499 @@
+{
+  "$defs": {
+    "Assumption": {
+      "additionalProperties": false,
+      "description": "A value the tool supplied because the template did not.\n\nEvery assumption carries its provenance, so a reader can always see the difference\nbetween \"the template says 730 hours\" and \"we assumed 730 hours\".",
+      "properties": {
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ValueProvenance"
+        },
+        "resource": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResourceKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject",
+        "value",
+        "provenance"
+      ],
+      "title": "Assumption",
+      "type": "object"
+    },
+    "Confidence": {
+      "description": "How much the estimate for a component can be relied upon.\n\nAssigned from the documented table in ``docs/domain-model.md`` and always\naccompanied by human-readable reasons. Never assigned ad hoc.",
+      "enum": [
+        "UNKNOWN",
+        "LOW",
+        "MEDIUM",
+        "HIGH"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "CostComponent": {
+      "additionalProperties": false,
+      "description": "One priced dimension of one resource, across both snapshots.",
+      "properties": {
+        "assumptions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Assumption"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "component_id": {
+          "title": "Component Id",
+          "type": "string"
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "confidence_reasons": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Confidence Reasons",
+          "type": "array"
+        },
+        "current_monthly": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "estimate_type": {
+          "$ref": "#/$defs/EstimateType"
+        },
+        "high": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "low": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "monthly_delta": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "one_time": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "pricing_dimension": {
+          "title": "Pricing Dimension",
+          "type": "string"
+        },
+        "pricing_source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PricingSourceRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "proposed_monthly": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "purchase_option": {
+          "$ref": "#/$defs/PurchaseOption",
+          "default": "ON_DEMAND"
+        },
+        "quantity": {
+          "anyOf": [
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quantity"
+        },
+        "region": {
+          "title": "Region",
+          "type": "string"
+        },
+        "resource": {
+          "$ref": "#/$defs/ResourceKey"
+        },
+        "service": {
+          "title": "Service",
+          "type": "string"
+        },
+        "unit": {
+          "default": "",
+          "title": "Unit",
+          "type": "string"
+        },
+        "unknown_inputs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/UnknownInput"
+          },
+          "title": "Unknown Inputs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "component_id",
+        "service",
+        "resource",
+        "pricing_dimension",
+        "region",
+        "estimate_type",
+        "confidence"
+      ],
+      "title": "CostComponent",
+      "type": "object"
+    },
+    "CostTotals": {
+      "additionalProperties": false,
+      "description": "Report-level totals.\n\nThere is deliberately no field that folds unknowns into a number.\n``+$184.27 with 3 unknown components`` is honest; ``+$184.27`` alone is not.",
+      "properties": {
+        "current_monthly": {
+          "$ref": "#/$defs/Money"
+        },
+        "fixed_delta": {
+          "$ref": "#/$defs/Money"
+        },
+        "monthly_delta": {
+          "$ref": "#/$defs/Money"
+        },
+        "monthly_hours": {
+          "default": 730,
+          "title": "Monthly Hours",
+          "type": "integer"
+        },
+        "one_time": {
+          "$ref": "#/$defs/Money"
+        },
+        "proposed_monthly": {
+          "$ref": "#/$defs/Money"
+        },
+        "unknown_component_count": {
+          "default": 0,
+          "title": "Unknown Component Count",
+          "type": "integer"
+        },
+        "usage_based_delta": {
+          "$ref": "#/$defs/Money"
+        }
+      },
+      "required": [
+        "current_monthly",
+        "proposed_monthly",
+        "monthly_delta",
+        "fixed_delta",
+        "usage_based_delta",
+        "one_time"
+      ],
+      "title": "CostTotals",
+      "type": "object"
+    },
+    "Currency": {
+      "description": "Supported currencies.\n\nThe MVP pricing catalog is USD only. The enum exists so that adding a currency is a\ndata change rather than a refactor of every monetary field.",
+      "enum": [
+        "USD"
+      ],
+      "title": "Currency",
+      "type": "string"
+    },
+    "EstimateType": {
+      "description": "Which pricing model a cost component follows.",
+      "enum": [
+        "FIXED",
+        "USAGE_BASED",
+        "COMMITMENT_BASED",
+        "TIERED",
+        "FREE_TIER_DEPENDENT",
+        "DATA_TRANSFER",
+        "UNKNOWN"
+      ],
+      "title": "EstimateType",
+      "type": "string"
+    },
+    "Money": {
+      "additionalProperties": false,
+      "description": "An exact monetary amount in a single currency.",
+      "properties": {
+        "amount": {
+          "title": "Amount",
+          "type": "string"
+        },
+        "currency": {
+          "$ref": "#/$defs/Currency",
+          "default": "USD"
+        }
+      },
+      "required": [
+        "amount"
+      ],
+      "title": "Money",
+      "type": "object"
+    },
+    "PricingSourceRef": {
+      "additionalProperties": false,
+      "description": "Where a rate came from.\n\nA rate that cannot name its source does not get used. ``retrieved_at`` is when the\nprice was *captured*, not when the tool ran: a report produced today from a catalog\ncaptured months ago must say so.",
+      "properties": {
+        "authoritative": {
+          "default": false,
+          "title": "Authoritative",
+          "type": "boolean"
+        },
+        "catalog_version": {
+          "default": "",
+          "title": "Catalog Version",
+          "type": "string"
+        },
+        "price_id": {
+          "default": "",
+          "title": "Price Id",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "region": {
+          "default": "",
+          "title": "Region",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retrieved At"
+        }
+      },
+      "required": [
+        "provider"
+      ],
+      "title": "PricingSourceRef",
+      "type": "object"
+    },
+    "PurchaseOption": {
+      "description": "Commercial terms under which a rate applies.",
+      "enum": [
+        "ON_DEMAND",
+        "RESERVED",
+        "SAVINGS_PLAN",
+        "SPOT"
+      ],
+      "title": "PurchaseOption",
+      "type": "string"
+    },
+    "ResourceKey": {
+      "additionalProperties": false,
+      "description": "Identifies a resource within a comparison: a stack plus a logical ID.",
+      "properties": {
+        "logical_id": {
+          "title": "Logical Id",
+          "type": "string"
+        },
+        "stack": {
+          "title": "Stack",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stack",
+        "logical_id"
+      ],
+      "title": "ResourceKey",
+      "type": "object"
+    },
+    "UnknownInput": {
+      "additionalProperties": false,
+      "description": "An input that could not be established, and what it prevented.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "remedy": {
+          "default": "",
+          "title": "Remedy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "reason"
+      ],
+      "title": "UnknownInput",
+      "type": "object"
+    },
+    "UnknownSummary": {
+      "additionalProperties": false,
+      "description": "What the report could not establish.",
+      "properties": {
+        "component_count": {
+          "default": 0,
+          "title": "Component Count",
+          "type": "integer"
+        },
+        "inputs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/UnknownInput"
+          },
+          "title": "Inputs",
+          "type": "array"
+        },
+        "resource_types": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Resource Types",
+          "type": "array"
+        }
+      },
+      "title": "UnknownSummary",
+      "type": "object"
+    },
+    "ValueProvenance": {
+      "description": "Where an input to an estimate came from.\n\nThe declaration order is the precedence order, most specific first. It is used by\n:func:`most_specific_provenance` and rendered in reports, so that every assumption\ncan be traced to its source.",
+      "enum": [
+        "TEMPLATE",
+        "CLI_PARAMETER",
+        "TEMPLATE_DEFAULT",
+        "CONFIG_RESOURCE_OVERRIDE",
+        "CONFIG_ENVIRONMENT",
+        "HISTORICAL",
+        "BUILTIN_DEFAULT",
+        "UNRESOLVED"
+      ],
+      "title": "ValueProvenance",
+      "type": "string"
+    }
+  },
+  "$id": "https://github.com/lapczyna/aws-cost-aware-deployment-gate/schemas/v1/report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The full estimate: components, totals and everything needed to explain them.",
+  "properties": {
+    "assumptions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Assumption"
+      },
+      "title": "Assumptions",
+      "type": "array"
+    },
+    "components": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CostComponent"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "currency": {
+      "default": "USD",
+      "title": "Currency",
+      "type": "string"
+    },
+    "region": {
+      "default": "",
+      "title": "Region",
+      "type": "string"
+    },
+    "totals": {
+      "$ref": "#/$defs/CostTotals"
+    },
+    "unknowns": {
+      "$ref": "#/$defs/UnknownSummary"
+    }
+  },
+  "required": [
+    "totals"
+  ],
+  "title": "cost-gate cost report",
+  "type": "object",
+  "x-cost-gate-schema-version": "1",
+  "x-generated-from": "cost_gate.domain.cost.CostReport",
+  "x-mode": "serialization"
+}

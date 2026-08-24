@@ -1,0 +1,172 @@
+{
+  "$defs": {
+    "Currency": {
+      "description": "Supported currencies.\n\nThe MVP pricing catalog is USD only. The enum exists so that adding a currency is a\ndata change rather than a refactor of every monetary field.",
+      "enum": [
+        "USD"
+      ],
+      "title": "Currency",
+      "type": "string"
+    },
+    "PricingConfig": {
+      "additionalProperties": false,
+      "description": "Which pricing provider to use and where its data lives.",
+      "properties": {
+        "cache_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cache Dir"
+        },
+        "catalog": {
+          "default": "pricing-data",
+          "title": "Catalog",
+          "type": "string"
+        },
+        "provider": {
+          "default": "fixtures",
+          "enum": [
+            "fixtures",
+            "aws",
+            "chain"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "ttl_hours": {
+          "default": 24,
+          "title": "Ttl Hours",
+          "type": "integer"
+        }
+      },
+      "title": "PricingConfig",
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/lapczyna/aws-cost-aware-deployment-gate/schemas/v1/cost-gate.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The contents of ``cost-gate.yaml``.",
+  "properties": {
+    "application": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Application"
+    },
+    "budgets": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Budgets"
+    },
+    "cost_centre": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cost Centre"
+    },
+    "currency": {
+      "$ref": "#/$defs/Currency",
+      "default": "USD"
+    },
+    "environment": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Environment"
+    },
+    "monthly_hours": {
+      "default": 730,
+      "title": "Monthly Hours",
+      "type": "integer"
+    },
+    "policies": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Policies"
+    },
+    "pricing": {
+      "$ref": "#/$defs/PricingConfig"
+    },
+    "region": {
+      "default": "us-east-1",
+      "title": "Region",
+      "type": "string"
+    },
+    "team": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Team"
+    },
+    "usage_profile": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Usage Profile"
+    },
+    "version": {
+      "const": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "title": "cost-gate root configuration",
+  "type": "object",
+  "x-cost-gate-schema-version": "1",
+  "x-generated-from": "cost_gate.config.root.RootConfig",
+  "x-mode": "validation"
+}

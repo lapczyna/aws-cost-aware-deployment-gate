@@ -1,0 +1,45 @@
+# Usage assumptions.
+#
+# A template says a Lambda function exists; it cannot say how often it is invoked.
+# This file is where a team records what it expects, in version control, so the
+# assumption is reviewable rather than buried inside an estimator.
+#
+# Driver names are a closed vocabulary: a misspelling is rejected at load time rather
+# than silently ignored, because a driver nothing reads is worse than no driver at all.
+version: 1
+
+# Applied when neither the environment nor a resource override supplies a value.
+defaults:
+  monthly_hours: 730
+
+environments:
+  production:
+    monthly_hours: 730
+    requests_per_month: 10000000
+    outbound_data_gb: 500
+    log_ingestion_gb: 100
+
+  development:
+    # Development does not run around the clock. Converted deterministically using a
+    # fixed 730/168 weeks-per-month factor, so the number never depends on which
+    # month the tool happens to run in. This is an assumption, not a control: it does
+    # not stop an instance running at the weekend.
+    schedule: "Mon-Fri 08:00-20:00"
+    requests_per_month: 200000
+    outbound_data_gb: 20
+    log_ingestion_gb: 10
+
+  test:
+    monthly_hours: 80
+
+# Per-resource overrides, keyed by logical ID. These beat the environment profile.
+resource_overrides:
+  AnalyticsFunction:
+    # A range rather than a point value: the report then shows a span instead of
+    # inventing a precision nobody claimed.
+    invocations_per_month:
+      min: 500000
+      expected: 1500000
+      max: 9000000
+    average_duration_ms: 750
+    allocated_memory_mb: 1024

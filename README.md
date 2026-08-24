@@ -4,7 +4,7 @@ A CI/CD gate that estimates the monthly AWS cost impact of an infrastructure cha
 is deployed**, evaluates it against version-controlled budgets and policies, and returns an
 explainable decision on the pull request.
 
-> **Project status: Phase 1 — foundation and quality gates in place.**
+> **Project status: Phase 2 — domain model and configuration schemas in place.**
 > This README is a skeleton. Sections marked *(pending)* are completed in later phases, and all
 > sample reports will be generated artifacts rather than hand-written illustrations.
 
@@ -54,6 +54,8 @@ See [`docs/estimation-methodology.md`](docs/estimation-methodology.md).
 | [Security](docs/security.md) | Threat model, trigger safety, OIDC, input handling, supply chain |
 | [ADRs](docs/adr/README.md) | Decisions, alternatives and consequences |
 | [Roadmap](docs/roadmap.md) | Phases, service coverage, deferred work |
+| [Example configuration](examples/config/) | Annotated `cost-gate.yaml` and usage profile |
+| [JSON Schemas](schemas/) | Generated from the models; validate config and consume reports |
 
 ## Quick start
 

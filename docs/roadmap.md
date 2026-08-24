@@ -8,7 +8,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 |---|---|---|---|
 | 0 | Architecture documentation and ADRs | done | see git log |
 | 1 | Project foundation and quality gates | done | see git log |
-| 2 | Domain model and configuration schemas | planned | |
+| 2 | Domain model and configuration schemas | done | see git log |
 | 3 | CloudFormation parser and normalisation | planned | |
 | 4 | Infrastructure change engine | planned | |
 | 5 | Pricing provider framework | planned | |

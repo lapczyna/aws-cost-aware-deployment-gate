@@ -1,0 +1,32 @@
+# Root configuration for the cost-aware deployment gate.
+#
+# Every referenced path is resolved relative to this file and confined to its
+# directory: these paths come from a file a pull request can edit.
+version: 1
+
+# Pricing region and currency. The bundled catalog covers us-east-1 only; anything
+# else resolves to PriceNotFound and is reported as UNKNOWN rather than approximated.
+region: us-east-1
+currency: USD
+
+# Hours-per-month convention (AWS uses 365 * 24 / 12 = 730). Printed in every report
+# so that no reader has to guess whether 730, 720 or 744 was used.
+monthly_hours: 730
+
+# Default attribution for resources that carry no tags of their own. Budgets and
+# policy scopes match on these.
+environment: development
+application: payments
+team: payments-platform
+
+usage_profile: usage.yaml
+# budgets: budgets.yaml     # added in Phase 9
+# policies: policies.yaml   # added in Phase 9
+
+pricing:
+  # `fixtures` is the deterministic offline catalog and the only provider that works
+  # without AWS credentials. `chain` must be requested explicitly: an implicit
+  # fallback would let a failed lookup quietly become a stale price (ADR 0005).
+  provider: fixtures
+  catalog: ../../pricing-data
+  ttl_hours: 24

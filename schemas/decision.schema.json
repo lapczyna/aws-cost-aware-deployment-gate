@@ -1,0 +1,558 @@
+{
+  "$defs": {
+    "BudgetEvaluation": {
+      "additionalProperties": false,
+      "description": "How a change measures against one budget.\n\nThe monetary fields are kept apart on purpose. Conflating \"the estimated cost of the\nresources described by this template\" with \"what this application actually costs\" is\nthe fastest way for cost tooling to lose its credibility, so an estimate and an\nactual never share a field.",
+      "properties": {
+        "baseline_actual_monthly": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "basis": {
+          "default": "estimate",
+          "title": "Basis",
+          "type": "string"
+        },
+        "budget_id": {
+          "title": "Budget Id",
+          "type": "string"
+        },
+        "estimated_delta": {
+          "$ref": "#/$defs/Money"
+        },
+        "estimated_infrastructure_current": {
+          "$ref": "#/$defs/Money"
+        },
+        "estimated_infrastructure_proposed": {
+          "$ref": "#/$defs/Money"
+        },
+        "forecast_monthly": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "headroom": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "maximum_monthly_increase": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "monthly_limit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "scope_matched": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Scope Matched",
+          "type": "object"
+        },
+        "thresholds_crossed": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Thresholds Crossed",
+          "type": "array"
+        },
+        "unknown_component_count": {
+          "default": 0,
+          "title": "Unknown Component Count",
+          "type": "integer"
+        },
+        "utilization_percent": {
+          "anyOf": [
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Utilization Percent"
+        }
+      },
+      "required": [
+        "budget_id",
+        "estimated_infrastructure_current",
+        "estimated_infrastructure_proposed",
+        "estimated_delta"
+      ],
+      "title": "BudgetEvaluation",
+      "type": "object"
+    },
+    "CostTotals": {
+      "additionalProperties": false,
+      "description": "Report-level totals.\n\nThere is deliberately no field that folds unknowns into a number.\n``+$184.27 with 3 unknown components`` is honest; ``+$184.27`` alone is not.",
+      "properties": {
+        "current_monthly": {
+          "$ref": "#/$defs/Money"
+        },
+        "fixed_delta": {
+          "$ref": "#/$defs/Money"
+        },
+        "monthly_delta": {
+          "$ref": "#/$defs/Money"
+        },
+        "monthly_hours": {
+          "default": 730,
+          "title": "Monthly Hours",
+          "type": "integer"
+        },
+        "one_time": {
+          "$ref": "#/$defs/Money"
+        },
+        "proposed_monthly": {
+          "$ref": "#/$defs/Money"
+        },
+        "unknown_component_count": {
+          "default": 0,
+          "title": "Unknown Component Count",
+          "type": "integer"
+        },
+        "usage_based_delta": {
+          "$ref": "#/$defs/Money"
+        }
+      },
+      "required": [
+        "current_monthly",
+        "proposed_monthly",
+        "monthly_delta",
+        "fixed_delta",
+        "usage_based_delta",
+        "one_time"
+      ],
+      "title": "CostTotals",
+      "type": "object"
+    },
+    "Currency": {
+      "description": "Supported currencies.\n\nThe MVP pricing catalog is USD only. The enum exists so that adding a currency is a\ndata change rather than a refactor of every monetary field.",
+      "enum": [
+        "USD"
+      ],
+      "title": "Currency",
+      "type": "string"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "description": "A concrete thing that caused a policy to match.",
+      "properties": {
+        "component_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Id"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "resource": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResourceKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceLocation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "description"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "GateResult": {
+      "description": "The outcome of a gate evaluation.\n\n``ERROR`` is ranked highest so that ``max()`` produces the correct result, but it is\nnot a policy action: only the engine emits it, when it cannot produce a trustworthy\nanswer. A gate that opens when it is confused is not a gate.",
+      "enum": [
+        "PASS",
+        "WARN",
+        "REQUIRE_APPROVAL",
+        "BLOCK",
+        "ERROR"
+      ],
+      "title": "GateResult",
+      "type": "string"
+    },
+    "Money": {
+      "additionalProperties": false,
+      "description": "An exact monetary amount in a single currency.",
+      "properties": {
+        "amount": {
+          "title": "Amount",
+          "type": "string"
+        },
+        "currency": {
+          "$ref": "#/$defs/Currency",
+          "default": "USD"
+        }
+      },
+      "required": [
+        "amount"
+      ],
+      "title": "Money",
+      "type": "object"
+    },
+    "PolicyAction": {
+      "description": "What a matched policy asks the gate to do.\n\nA strict subset of :class:`GateResult`: a policy can never produce ``PASS``\n(a policy that matched has something to say) nor ``ERROR`` (that is the engine\nreporting its own failure, not a rule firing).",
+      "enum": [
+        "WARN",
+        "REQUIRE_APPROVAL",
+        "BLOCK"
+      ],
+      "title": "PolicyAction",
+      "type": "string"
+    },
+    "PolicyEvaluation": {
+      "additionalProperties": false,
+      "description": "The outcome of evaluating one policy, whether or not it matched.",
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyAction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "approver_group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approver Group"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "evaluated_inputs": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Evaluated Inputs",
+          "type": "object"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "matched": {
+          "title": "Matched",
+          "type": "boolean"
+        },
+        "matched_conditions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Matched Conditions",
+          "type": "array"
+        },
+        "policy_id": {
+          "title": "Policy Id",
+          "type": "string"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity",
+          "default": "MEDIUM"
+        }
+      },
+      "required": [
+        "policy_id",
+        "matched"
+      ],
+      "title": "PolicyEvaluation",
+      "type": "object"
+    },
+    "Reason": {
+      "additionalProperties": false,
+      "description": "A human-readable statement of why the gate reached its result.",
+      "properties": {
+        "policy_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Policy Id"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity",
+          "default": "MEDIUM"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Reason",
+      "type": "object"
+    },
+    "ResourceKey": {
+      "additionalProperties": false,
+      "description": "Identifies a resource within a comparison: a stack plus a logical ID.",
+      "properties": {
+        "logical_id": {
+          "title": "Logical Id",
+          "type": "string"
+        },
+        "stack": {
+          "title": "Stack",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stack",
+        "logical_id"
+      ],
+      "title": "ResourceKey",
+      "type": "object"
+    },
+    "Severity": {
+      "description": "How serious a matched policy considers its finding.\n\nSeverity orders the *presentation* of findings. It never affects the decision:\nonly :class:`PolicyAction` does that. A ``low``-severity ``BLOCK`` still blocks.",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "SourceLocation": {
+      "additionalProperties": false,
+      "description": "Where a resource was declared.\n\nCarrying this through to the report is the difference between a finding a developer\nacts on and one they ignore: it lets the gate say which file and which line\nintroduced a cost.",
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line"
+        },
+        "pointer": {
+          "default": "",
+          "title": "Pointer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "title": "SourceLocation",
+      "type": "object"
+    },
+    "UnknownInput": {
+      "additionalProperties": false,
+      "description": "An input that could not be established, and what it prevented.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "remedy": {
+          "default": "",
+          "title": "Remedy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "reason"
+      ],
+      "title": "UnknownInput",
+      "type": "object"
+    },
+    "UnknownSummary": {
+      "additionalProperties": false,
+      "description": "What the report could not establish.",
+      "properties": {
+        "component_count": {
+          "default": 0,
+          "title": "Component Count",
+          "type": "integer"
+        },
+        "inputs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/UnknownInput"
+          },
+          "title": "Inputs",
+          "type": "array"
+        },
+        "resource_types": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Resource Types",
+          "type": "array"
+        }
+      },
+      "title": "UnknownSummary",
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/lapczyna/aws-cost-aware-deployment-gate/schemas/v1/decision.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The complete, explainable outcome of a gate evaluation.",
+  "properties": {
+    "budget_evaluations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/BudgetEvaluation"
+      },
+      "title": "Budget Evaluations",
+      "type": "array"
+    },
+    "errors": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Errors",
+      "type": "array"
+    },
+    "policy_evaluations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PolicyEvaluation"
+      },
+      "title": "Policy Evaluations",
+      "type": "array"
+    },
+    "reasons": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Reason"
+      },
+      "title": "Reasons",
+      "type": "array"
+    },
+    "required_approver_groups": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Required Approver Groups",
+      "type": "array"
+    },
+    "result": {
+      "$ref": "#/$defs/GateResult"
+    },
+    "totals": {
+      "$ref": "#/$defs/CostTotals"
+    },
+    "unknowns": {
+      "$ref": "#/$defs/UnknownSummary"
+    }
+  },
+  "required": [
+    "result",
+    "totals"
+  ],
+  "title": "cost-gate gate decision",
+  "type": "object",
+  "x-cost-gate-schema-version": "1",
+  "x-generated-from": "cost_gate.domain.decision.GateDecision",
+  "x-mode": "serialization"
+}
