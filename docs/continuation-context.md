@@ -45,7 +45,10 @@ Installable, typed, tested package skeleton. No domain logic yet.
 * `scripts/dev.py` — canonical task runner; `Makefile` delegates to it.
 * `.github/workflows/ci.yml` — quality, tests (Ubuntu + Windows, py3.12 + py3.13), security,
   workflow-safety invariants, package build with a clean-install verification.
-* `tests/unit/` — 12 tests covering the CLI skeleton and the exit-code contract.
+* `scripts/check_workflows.py` — parses workflow YAML to reject `pull_request_target`,
+  unsafe YAML loading and unpinned third-party actions.
+* `tests/unit/` — 37 tests covering the CLI skeleton, the exit-code contract and the
+  safety checker.
 * `pricing-data/README.md` — placeholder; the catalog itself lands in Phase 5.
 * `CONTRIBUTING.md`, `SECURITY.md`.
 
@@ -75,6 +78,10 @@ policies, reporting, `examples/`, `schemas/`, `policies/`, `infrastructure/`.
    vulnerabilities still exit non-zero.
 4. Hatchling `force-include` fails the build when the source path does not exist, which is why
    `pricing-data/README.md` exists before the catalog does.
+5. A shell `grep` for `pull_request_target` across `.github/workflows/` matches **its own
+   step name and pattern**, so the guard failed CI on a violation it invented. Workflow
+   triggers are now read by parsing the YAML (`scripts/check_workflows.py`), and note that
+   YAML 1.1 parses a bare `on:` key as the boolean `True`.
 
 ## Verification commands
 
@@ -83,9 +90,9 @@ python scripts/dev.py all      # format-check, lint, typecheck, imports, tests, 
 python scripts/dev.py build    # wheel + sdist
 ```
 
-Last full run (Phase 1): Ruff clean, mypy strict clean over 17 files, import-linter 2 contracts
-kept, 12 tests passed, pip-audit reports no known vulnerabilities, wheel builds and
-`cost-gate --version` works from a clean virtualenv.
+Last full run (Phase 1): Ruff clean, mypy strict clean over 18 files, import-linter 2 contracts
+kept, 37 tests passed, pip-audit reports no known vulnerabilities, the safety checker is
+green, the wheel builds, and `cost-gate --version` works from a clean virtualenv.
 
 ## Current limitations
 

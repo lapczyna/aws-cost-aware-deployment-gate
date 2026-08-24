@@ -147,6 +147,11 @@ def task_security(extra: Sequence[str]) -> None:
     run(PY, "-m", "pip_audit", "--skip-editable", "--progress-spinner=off")
 
 
+def task_check_workflows(extra: Sequence[str]) -> None:
+    """Verify repository safety invariants (triggers, YAML loading, action pinning)."""
+    run(PY, str(ROOT / "scripts" / "check_workflows.py"), *extra)
+
+
 def task_build(extra: Sequence[str]) -> None:
     """Build the wheel and source distribution."""
     run(PY, "-m", "pip", "install", "--quiet", "--upgrade", "build")
@@ -200,6 +205,7 @@ def task_all(extra: Sequence[str]) -> None:
         task_imports,
         task_test_all,
         task_security,
+        task_check_workflows,
     ):
         task(())
 
@@ -219,6 +225,7 @@ TASKS: dict[str, Callable[[Sequence[str]], None]] = {
     "test-all": task_test_all,
     "coverage": task_coverage,
     "security": task_security,
+    "check-workflows": task_check_workflows,
     "build": task_build,
     "demo": task_demo,
     "analyze": task_analyze,
