@@ -1,0 +1,12 @@
+# Normalise line endings. Required: development happens on Windows with
+# core.autocrlf=true, while golden-file tests compare bytes.
+* text=auto eol=lf
+
+# Golden/snapshot files are compared byte-for-byte: never translate them.
+*.golden  -text
+tests/fixtures/**/expected/** -text
+
+# Keep binary files untouched.
+*.png binary
+*.jpg binary
+*.ico binary

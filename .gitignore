@@ -1,0 +1,47 @@
+# --- IDE -------------------------------------------------------------------
+.idea/
+.vscode/
+*.iml
+
+# --- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+.python-version
+
+# --- Tooling caches --------------------------------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+report.xml
+
+# --- Node / CDK ------------------------------------------------------------
+node_modules/
+cdk.out/
+.cdk.staging/
+
+# --- Project outputs -------------------------------------------------------
+/build/
+/out/
+*.report.json
+*.report.md
+
+# --- Caches written by the tool -------------------------------------------
+.cost-gate-cache/
+
+# --- Secrets (defence in depth; never rely on this alone) -----------------
+.env
+.env.*
+*.pem
+credentials
+aws-credentials*
