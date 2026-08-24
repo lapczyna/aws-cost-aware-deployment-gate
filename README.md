@@ -4,7 +4,7 @@ A CI/CD gate that estimates the monthly AWS cost impact of an infrastructure cha
 is deployed**, evaluates it against version-controlled budgets and policies, and returns an
 explainable decision on the pull request.
 
-> **Project status: Phase 0 — architecture defined, implementation in progress.**
+> **Project status: Phase 1 — foundation and quality gates in place.**
 > This README is a skeleton. Sections marked *(pending)* are completed in later phases, and all
 > sample reports will be generated artifacts rather than hand-written illustrations.
 
@@ -57,7 +57,20 @@ See [`docs/estimation-methodology.md`](docs/estimation-methodology.md).
 
 ## Quick start
 
-*(pending — Phase 1)*
+```bash
+git clone https://github.com/lapczyna/aws-cost-aware-deployment-gate.git
+cd aws-cost-aware-deployment-gate
+
+python -m venv .venv
+# Windows:         .venv\Scripts\activate
+# macOS / Linux:   source .venv/bin/activate
+
+python scripts/dev.py install
+cost-gate --version
+```
+
+Python 3.12 or newer. No AWS account, credentials or network access are required — for the
+quick start, the tests, or the demo scenarios.
 
 ## Local demo
 
@@ -78,7 +91,30 @@ See [the roadmap](docs/roadmap.md#planned-service-coverage). Once the CLI exists
 
 ## Development
 
-*(pending — Phase 1)*
+`scripts/dev.py` is the canonical task runner; the `Makefile` delegates to it, so both work
+(and `make` is not required):
+
+```bash
+python scripts/dev.py --list      # every available task
+python scripts/dev.py all         # the full gate, exactly as CI runs it
+```
+
+| Task | What it does |
+|---|---|
+| `install` | Editable install with development dependencies |
+| `format` / `format-check` | Ruff formatting and import order |
+| `lint` | Ruff, including the Bandit rule set |
+| `typecheck` | mypy in strict mode |
+| `imports` | import-linter: enforces that `domain/` never imports `boto3`, `typer` or delivery code |
+| `test` / `test-all` / `coverage` | pytest; `test-all` excludes only the opt-in `cdk` suite |
+| `security` | Bandit and pip-audit |
+| `build` | Wheel and source distribution |
+| `demo` / `analyze` | Deterministic scenarios and ad-hoc analysis (Phase 12) |
+
+The architecture rule is machine-enforced rather than aspirational: adding `import typer` to
+`cost_gate.domain` fails `python scripts/dev.py imports`.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full rules.
 
 ## Limitations
 

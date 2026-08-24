@@ -1,0 +1,150 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Start from nothing and grant per job only what is required.
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  # The default analysis path must never need AWS. Poisoning these makes an
+  # accidental SDK call fail loudly instead of silently picking up ambient
+  # credentials on a self-hosted runner.
+  AWS_ACCESS_KEY_ID: "testing-not-a-real-key"
+  AWS_SECRET_ACCESS_KEY: "testing-not-a-real-key"
+  AWS_DEFAULT_REGION: "us-east-1"
+  AWS_EC2_METADATA_DISABLED: "true"
+
+jobs:
+  quality:
+    name: lint, types and architecture
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Format check
+        run: python scripts/dev.py format-check
+      - name: Lint
+        run: python scripts/dev.py lint
+      - name: Type check
+        run: python scripts/dev.py typecheck
+      - name: Architecture contracts
+        run: python scripts/dev.py imports
+
+  test:
+    name: tests (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.12"]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.13"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Tests
+        run: python scripts/dev.py coverage
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage
+          path: coverage.xml
+          retention-days: 7
+
+  security:
+    name: security scanning
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Bandit and pip-audit
+        run: python scripts/dev.py security
+
+  workflow-safety:
+    name: workflow safety invariants
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Reject pull_request_target (ADR 0007)
+        run: |
+          if grep -rn 'pull_request_target' .github/workflows/; then
+            echo "::error::pull_request_target is prohibited in this repository. See docs/adr/0007."
+            exit 1
+          fi
+          echo "ok: no pull_request_target trigger"
+      - name: Reject unsafe YAML loading
+        run: |
+          if grep -rnE 'yaml\.(load|unsafe_load|full_load)\(' src/ scripts/ 2>/dev/null; then
+            echo "::error::use a SafeLoader subclass. See docs/security.md."
+            exit 1
+          fi
+          echo "ok: no unsafe YAML loading"
+      - name: Reject unpinned third-party actions
+        run: |
+          if grep -rnP 'uses: (?!\./)[^ ]+@(v[0-9]|main|master)' .github/workflows/; then
+            echo "::error::pin third-party actions to a full commit SHA. See docs/security.md."
+            exit 1
+          fi
+          echo "ok: third-party actions are SHA-pinned"
+
+  build:
+    name: package build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install build
+          python -m build
+      - name: Verify the wheel installs and the entry point runs
+        run: |
+          python -m venv /tmp/verify
+          /tmp/verify/bin/python -m pip install --quiet dist/*.whl
+          /tmp/verify/bin/cost-gate --version
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
