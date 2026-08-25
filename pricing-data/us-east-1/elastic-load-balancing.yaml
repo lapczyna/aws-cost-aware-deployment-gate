@@ -1,0 +1,36 @@
+# Approximate, unverified. See ../manifest.yaml before relying on any figure.
+version: 1
+service: AWSELB
+region: us-east-1
+currency: USD
+
+prices:
+  - id: alb-hours
+    dimension: LoadBalancer-Hours
+    rate: "0.0225"
+    unit: Hrs
+    attributes: {loadBalancerType: application}
+    description: Application Load Balancer, per load-balancer-hour
+
+  - id: nlb-hours
+    dimension: LoadBalancer-Hours
+    rate: "0.0225"
+    unit: Hrs
+    attributes: {loadBalancerType: network}
+    description: Network Load Balancer, per load-balancer-hour
+
+  - id: alb-lcu-hours
+    dimension: LCU-Hours
+    rate: "0.008"
+    unit: Hrs
+    attributes: {loadBalancerType: application}
+    description: >-
+      Application Load Balancer capacity unit-hour. Driven by connections, requests,
+      bandwidth and rule evaluations, so it is usage-based rather than fixed.
+
+  - id: nlb-lcu-hours
+    dimension: LCU-Hours
+    rate: "0.006"
+    unit: Hrs
+    attributes: {loadBalancerType: network}
+    description: Network Load Balancer capacity unit-hour

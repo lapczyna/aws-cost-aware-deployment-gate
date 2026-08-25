@@ -1,0 +1,14 @@
+# Approximate, unverified. See ../manifest.yaml before relying on any figure.
+version: 1
+service: AmazonEKS
+region: us-east-1
+currency: USD
+
+prices:
+  - id: eks-control-plane-hours
+    dimension: ControlPlane-Hours
+    rate: "0.10"
+    unit: Hrs
+    description: >-
+      EKS cluster control plane, per cluster-hour. A fixed charge that accrues whether
+      or not any workload is scheduled.

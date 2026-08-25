@@ -1,0 +1,27 @@
+# Approximate, unverified. See ../manifest.yaml before relying on any figure.
+#
+# Data transfer is represented conservatively and at a single rate. Real pricing is
+# tiered, direction-dependent and topology-dependent; an estimate built on these rates
+# indicates magnitude only.
+version: 1
+service: AWSDataTransfer
+region: us-east-1
+currency: USD
+
+prices:
+  - id: transfer-out-internet
+    dimension: DataTransfer-Out-GB
+    rate: "0.09"
+    unit: GB
+    attributes: {destination: internet}
+    description: >-
+      Outbound to the internet, first paid tier. Excludes the monthly free allowance,
+      which this tool never applies silently.
+  - id: transfer-inter-az
+    dimension: DataTransfer-InterAZ-GB
+    rate: "0.01"
+    unit: GB
+    attributes: {destination: availability-zone}
+    description: >-
+      Between availability zones in the same region. Charged in each direction, which
+      the estimator accounts for rather than the catalog doubling the rate.

@@ -11,7 +11,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 2 | Domain model and configuration schemas | done | see git log |
 | 3 | CloudFormation parser and normalisation | done | see git log |
 | 4 | Infrastructure change engine | done | see git log |
-| 5 | Pricing provider framework | planned | |
+| 5 | Pricing provider framework | done | see git log |
 | 6 | Fixed-cost AWS estimators | planned | |
 | 7 | Usage-based estimators | planned | |
 | 8 | AWS Price List adapter (optional provider) | planned | |

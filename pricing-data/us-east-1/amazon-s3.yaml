@@ -1,0 +1,37 @@
+# Approximate, unverified. See ../manifest.yaml before relying on any figure.
+version: 1
+service: AmazonS3
+region: us-east-1
+currency: USD
+
+prices:
+  - id: s3-standard-storage
+    dimension: Storage-GB-Month
+    rate: "0.023"
+    unit: GB-Mo
+    attributes: {storageClass: STANDARD}
+    description: >-
+      Standard storage, first tier. Real pricing steps down above 50 TB, so this
+      overstates cost for large buckets.
+  - id: s3-standard-ia-storage
+    dimension: Storage-GB-Month
+    rate: "0.0125"
+    unit: GB-Mo
+    attributes: {storageClass: STANDARD_IA}
+  - id: s3-glacier-instant-storage
+    dimension: Storage-GB-Month
+    rate: "0.004"
+    unit: GB-Mo
+    attributes: {storageClass: GLACIER_IR}
+  - id: s3-put-requests
+    dimension: PutRequests
+    rate: "0.000005"
+    unit: Request
+    attributes: {storageClass: STANDARD}
+    description: PUT, COPY, POST and LIST. Commonly quoted as $0.005 per 1000.
+  - id: s3-get-requests
+    dimension: GetRequests
+    rate: "0.0000004"
+    unit: Request
+    attributes: {storageClass: STANDARD}
+    description: GET and SELECT. Commonly quoted as $0.0004 per 1000.

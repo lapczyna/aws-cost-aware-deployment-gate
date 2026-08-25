@@ -1,0 +1,60 @@
+# Pricing catalog manifest.
+#
+# READ THIS BEFORE TRUSTING ANY NUMBER IN THIS DIRECTORY.
+#
+# These rates are hand-entered approximations. They have not been checked against the
+# AWS Price List API or any other authoritative source, and no automated capture was
+# performed. They exist so that tests are deterministic, CI needs no AWS credentials,
+# and a reviewer with no cloud account can run every demonstration.
+#
+# They are NOT a price source. Use the AWS Pricing Calculator or the AWS Price List API
+# for real numbers. `cost-gate pricing refresh` (Phase 8) replaces this catalog with
+# data fetched from the Price List API, stamped with a genuine retrieval time.
+version: 1
+
+catalog_version: "0.1.0-illustrative"
+region: us-east-1
+currency: USD
+
+# When these rates were entered. Not when they were verified: they were not.
+captured_at: 2026-08-25T00:00:00Z
+
+authoritative: false
+verified: false
+
+source: >-
+  Hand-entered approximate on-demand list prices for US East (N. Virginia), written
+  from general knowledge of AWS public pricing rather than transcribed from a specific
+  retrieval. No verification against the AWS Price List API or the AWS pricing pages
+  has been performed. Treat every rate as indicative of magnitude only.
+
+limitations:
+  - Rates are approximate and unverified. They are suitable for demonstrating the tool
+    and for deterministic tests, and for nothing else.
+  - On-demand list prices only. Excludes Savings Plans, Reserved Instances, enterprise
+    discount programmes, credits, taxes and support charges, so the effective price an
+    account actually pays is normally lower.
+  - Single region. A rate requested for any region other than us-east-1 resolves to
+    PriceNotFound and is reported as UNKNOWN rather than approximated.
+  - Free-tier allowances are never applied.
+  - Coverage is limited to the resource types listed below; anything else produces a
+    visible UNKNOWN component.
+  - Tiered pricing is represented at a single rate. Where real pricing steps down with
+    volume, these figures correspond to the first tier and therefore overstate cost at
+    high volume.
+
+coverage:
+  - AWS::EC2::NatGateway
+  - AWS::EC2::EIP
+  - AWS::EC2::Instance
+  - AWS::EC2::Volume
+  - AWS::EKS::Cluster
+  - AWS::ElasticLoadBalancingV2::LoadBalancer
+  - AWS::RDS::DBInstance
+  - AWS::Lambda::Function
+  - AWS::ApiGatewayV2::Api
+  - AWS::ApiGateway::RestApi
+  - AWS::DynamoDB::Table
+  - AWS::S3::Bucket
+  - AWS::Logs::LogGroup
+  - Data transfer (outbound to internet, inter-availability-zone)

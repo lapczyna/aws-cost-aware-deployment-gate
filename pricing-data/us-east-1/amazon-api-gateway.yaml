@@ -1,0 +1,22 @@
+# Approximate, unverified. See ../manifest.yaml before relying on any figure.
+version: 1
+service: AmazonApiGateway
+region: us-east-1
+currency: USD
+
+prices:
+  - id: apigateway-http-requests
+    dimension: Requests
+    rate: "0.000001"
+    unit: Request
+    attributes: {apiType: HTTP}
+    description: >-
+      HTTP API, first tier. Commonly quoted as $1.00 per million requests. Real pricing
+      steps down above 300 million requests per month, so this overstates high volume.
+  - id: apigateway-rest-requests
+    dimension: Requests
+    rate: "0.0000035"
+    unit: Request
+    attributes: {apiType: REST}
+    description: >-
+      REST API, first tier. Commonly quoted as $3.50 per million requests.

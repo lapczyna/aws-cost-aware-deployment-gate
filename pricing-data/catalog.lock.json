@@ -1,0 +1,18 @@
+{
+  "files": {
+    "manifest.yaml": "sha256:02a0f9f8ad69088d208b7f9aa07974b6242d9074bdd7081929815364452c843f",
+    "us-east-1/amazon-api-gateway.yaml": "sha256:c39fb60fc5410ba960337e34522719f058b499f4012c162fa2a48fc1152f2574",
+    "us-east-1/amazon-cloudwatch.yaml": "sha256:5a03422ceccc4e7c4d5ef577f04011e4bfd87986c3034386ca2c8f6d659b3782",
+    "us-east-1/amazon-dynamodb.yaml": "sha256:5a40aaf5b5383fbaa316c34c61fb636966183e5c036c26100fac70829d91d7ad",
+    "us-east-1/amazon-ec2.yaml": "sha256:7d3ba27ecc97368f0d74227a119f5da78399bc9495da3a97811c75305bacc32a",
+    "us-east-1/amazon-eks.yaml": "sha256:496119973a6540dabc57cf2e533a24eaa414a4578ed2c179520048fb2bd6db55",
+    "us-east-1/amazon-rds.yaml": "sha256:093a2ed37d25a21add09312b3cf77471639e889aaa1f64165b04bc5566b87914",
+    "us-east-1/amazon-s3.yaml": "sha256:4ade1ea90d61ea25c693c8e2a98b50ad859b6ff578bd8c020355e25d8ecd6e83",
+    "us-east-1/amazon-vpc.yaml": "sha256:7a845f0fb221b9f1e186c4761a28d2a6ec7f71f093f2ad23627edf84e15897bb",
+    "us-east-1/aws-lambda.yaml": "sha256:8ee17bee742dbd40127ba4151ee746a93f1657dbccc4ed9f1aa6994b2a04fecc",
+    "us-east-1/data-transfer.yaml": "sha256:438d657f115a638d1d9248536e16a13059c8fc37349113f041ee6421bb310513",
+    "us-east-1/elastic-load-balancing.yaml": "sha256:91410d371dbed0446e3514d8676808349e4c7ad3be217ff1132cc2c2f1f6b534"
+  },
+  "note": "Regenerate with `cost-gate pricing lock` after editing any catalog file. A mismatch means the catalog changed without the lock being updated.",
+  "version": 1
+}

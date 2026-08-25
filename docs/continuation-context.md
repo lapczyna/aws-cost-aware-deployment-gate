@@ -3,7 +3,7 @@
 This document is the handover note. It is updated at the end of every phase so that work can
 resume from a clean state without re-deriving decisions.
 
-**Last updated:** end of Phase 4 (2026-08-25)
+**Last updated:** end of Phase 5 (2026-08-25)
 
 ## Architecture summary
 
@@ -32,12 +32,14 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 1a | Workflow safety checker (fix to Phase 1 CI) | `2a5f6af` |
 | 2 | Domain model and configuration schemas | `0409a6b` |
 | 3 | CloudFormation parser and normalisation | `32464ff` |
-| 4 | Infrastructure change engine | *(recorded at commit time)* |
+| 4 | Infrastructure change engine | `9b381ec` |
+| 5 | Pricing provider framework | *(recorded at commit time)* |
 
 ## Current state of the repository
 
-Domain, configuration, parsing and diffing are complete and tested. **No estimation, policy
-evaluation or reporting exists yet** — the CLI can validate configuration and export schemas.
+Domain, configuration, parsing, diffing and pricing are complete and tested. **No estimation,
+policy evaluation or reporting exists yet** — nothing yet turns a `ChangeSet` plus a
+`PricingProvider` into `CostComponent`s. That is Phase 6.
 
 Domain (`src/cost_gate/domain/`):
 
@@ -91,6 +93,31 @@ Diff (`src/cost_gate/diff/`):
   cost-relevant, else NO_COST_CHANGE. Only `Replacement.ALWAYS` promotes to REPLACE;
   `CONDITIONAL` and `UNKNOWN` are surfaced without asserting anything.
 
+Pricing (`src/cost_gate/pricing/`):
+
+* `keys.py` — `PriceKey` is **structured**, and attributes are matched **exactly**. A lookup
+  returns `PriceQuote | PriceNotFound` and nothing else: no fallback rate, no nearest match,
+  no zero. `CatalogMetadata.disclaimer` is the line every report footer carries.
+* `provider.py` — the protocol. Note `PricingError` versus `PriceNotFound`: *this rate is
+  unavailable* is normal and becomes an UNKNOWN component; *this provider is broken* must
+  make the gate ERROR. Collapsing the two would let a misconfigured catalog turn every cost
+  into an unknown and still pass.
+* `catalog.py` — `FixtureCatalogProvider`, plus `checksum_catalog` / `write_lock` /
+  `verify_catalog`. `CatalogManifest.authoritative` is `Literal[False]`, so a checked-in file
+  cannot be edited into claiming authority. Rates must be quoted strings; an unquoted YAML
+  float is rejected. Duplicate rates are rejected (they would make lookups file-order
+  dependent). Misses are diagnostic: wrong region, unknown service, unknown dimension and
+  attribute mismatch each get their own explanation.
+* `cache.py` — `CachingProvider` (caches misses too, TTL, hit-rate statistics) and
+  `ChainProvider` (explicit fallback only, keeps the *first* provider's explanation).
+
+`pricing-data/` — 53 rates across 11 service files for us-east-1, plus `manifest.yaml` and
+`catalog.lock.json`. **The rates are hand-entered and unverified**; the manifest says so in
+those words, and `authoritative: false` / `verified: false` are structural.
+
+CLI: `cost-gate pricing show|verify|lock`, and `refresh` which honestly reports that it
+arrives in Phase 8 rather than silently doing nothing.
+
 `yaml_bounds.py` (top level, outside the layer contract) holds the loader bounds shared by
 config and template parsing, including **duplicate-key rejection**.
 
@@ -98,7 +125,7 @@ Also: `schemas/` (4 generated files), `examples/config/` (annotated sample confi
 `tests/fixtures/templates/` (intrinsics fixture in YAML with a generated JSON sibling, plus a
 CDK-style multi-stack directory), `cost-gate validate-config` and `cost-gate schema export`.
 
-Still absent: `pricing/`, `estimators/`, `policies/`, `budgets/`,
+Still absent: `estimators/`, `policies/`, `budgets/`,
 `recommendations/`, `reporting/`, `adapters/`, `observability/`, the pricing catalog,
 budget/policy configuration models, `infrastructure/`.
 
@@ -149,6 +176,12 @@ budget/policy configuration models, `infrastructure/`.
     `(key, operation)`. Found by a Hypothesis property, not by a hand-written case.
 14. Reusing a loop variable name for an `Optional` later in the same function makes mypy
     report an incompatible assignment; give the second binding its own name.
+15. Ruff's `SIM118` fires on **any** `.keys()` call, including a method of your own that
+    returns a tuple. The provider method is named `available_keys()` rather than `keys()`,
+    which reads better anyway.
+16. `hasattr()` does not narrow a union for mypy; use `isinstance`.
+17. Bandit's B101 flags `assert` in source regardless of a ruff `noqa`. Where an assert was
+    guarding an impossible branch, returning an explicit result is better than suppressing.
 
 ## Verification commands
 
@@ -159,14 +192,19 @@ python -m cost_gate.cli.main validate-config --config examples/config/cost-gate.
 python -m cost_gate.cli.main schema export --out schemas
 ```
 
-Last full run (Phase 4): Ruff clean, mypy strict clean over 39 files, import-linter 2 contracts
-kept, **517 tests passed**, pip-audit reports no known vulnerabilities, safety checker green,
-wheel builds and ships the curated metadata.
+Last full run (Phase 5): Ruff clean, mypy strict clean over 44 files, import-linter 2 contracts
+kept, **647 tests passed**, pip-audit reports no known vulnerabilities, safety checker green.
+A clean-install check confirms the wheel ships both the curated resource metadata and the
+pricing catalog, and that `cost-gate pricing verify` passes against the packaged copy.
 
 ## Current limitations
 
 * No cost estimation exists. The CLI validates configuration and exports schemas only.
-* Nothing yet *prices* a change; that is Phases 5-7.
+* Nothing yet *prices* a change: the catalog exists, but no estimator consumes it. Phase 6.
+* **The bundled rates are approximate and unverified.** They are adequate for demonstrating
+  the mechanism and for deterministic tests, and for nothing else. Phase 8 replaces them.
+* One region (us-east-1). Any other region resolves to `PriceNotFound` by design.
+* Tiered pricing is represented at a single first-tier rate, so high volumes are overstated.
 * The curated metadata covers 21 resource types. Anything else diffs correctly but with
   `cost_relevant=True` and `replacement=UNKNOWN` on every property.
 * `Fn::ForEach`, `Fn::Length` and `Fn::ToJsonString` are recognised but deliberately
@@ -188,28 +226,32 @@ wheel builds and ships the curated metadata.
 
 ## Exact recommended next action
 
-**Phase 5 — pricing provider framework.** Implement `src/cost_gate/pricing/`:
+**Phase 6 — fixed-cost AWS estimators.** Implement `src/cost_gate/estimators/`:
 
-* `keys.py` — `PriceKey(service, dimension, region, attributes)`, structured rather than a
-  string, because mapping CloudFormation properties onto a pricing product is the genuinely
-  hard part of this problem.
-* `provider.py` — the `PricingProvider` protocol returning `PriceQuote | PriceNotFound`, plus
-  `catalog_metadata()`. **No fallback rate, no nearest match, no zero**: a missing price
-  becomes a visible `UNKNOWN` component.
-* `catalog.py` — `FixtureCatalogProvider` reading `pricing-data/`, which currently holds only
-  a README. Create `pricing-data/manifest.yaml` (region, currency, `captured_at`,
-  `authoritative: false`, coverage, limitations), `pricing-data/us-east-1/*.yaml`, and
-  `catalog.lock.json` with a sha256 per file.
-* `cache.py` — a caching decorator with TTL and hit-rate counters.
-* `chain.py` — ordered fallback, used only when explicitly configured (ADR 0005).
-* CLI: `cost-gate pricing show|verify`, where `verify` checks the lock file.
+* `registry.py` — map `AWS::Type` to an estimator, plus an `UnsupportedResourceEstimator`
+  that emits a visible `UNKNOWN` component for everything unregistered. Back
+  `cost-gate list-supported-resources` with the live registry so coverage claims cannot
+  drift from reality.
+* `base.py` — the estimator protocol. **Estimators price a resource *state*, never a
+  change** (ADR 0003): the engine calls each one twice, for the before and after states,
+  under one usage profile and one pricing snapshot, then subtracts. An estimator that
+  receives `None` returns no components.
+* `engine.py` — walk the `ChangeSet`, call estimators, pair components by pricing
+  dimension, and build `CostComponent`s. An added resource gets `current = Money.zero()`,
+  not `None`.
+* Per-service modules: `nat_gateway.py`, `eks.py`, `load_balancer.py`, `ec2.py`, `ebs.py`,
+  `rds.py`, `eip.py`.
 
-Prices are hand-curated approximate us-east-1 on-demand **list** prices with a recorded
-capture date, labelled non-authoritative in the manifest and in every report footer. They are
-illustrative, and the documentation must keep saying so.
+Every component must populate `assumptions`, `confidence_reasons` and `unknown_inputs`.
+The `CostComponent` validator already refuses a known estimate with no confidence reason,
+so this is enforced rather than requested.
 
-Tests: a shared provider conformance suite (a `PricingProvider` contract every implementation
-must satisfy), `PriceNotFound` producing an unknown rather than a guess, and `pricing verify`
-detecting a tampered catalog.
+Runtime hours come from `UsageProfileConfig.monthly_hours(...)`, which already returns the
+value, its provenance and a sentence explaining it — feed all three into the component.
 
-Commit message: `feat: establish deterministic pricing provider framework`
+Tests: one table-driven module per service, each including a case where a pricing-relevant
+property is unresolved and the result must be `UNKNOWN` with an `unknown_input` naming it,
+and a case where the catalog has no rate (`PriceNotFound`) and the result must also be
+`UNKNOWN` rather than zero.
+
+Commit message: `feat: estimate core fixed aws infrastructure costs`

@@ -1,0 +1,26 @@
+# Approximate, unverified. See ../manifest.yaml before relying on any figure.
+version: 1
+service: AmazonCloudWatch
+region: us-east-1
+currency: USD
+
+prices:
+  - id: logs-ingestion
+    dimension: Logs-Ingestion-GB
+    rate: "0.50"
+    unit: GB
+    attributes: {logGroupClass: STANDARD}
+    description: >-
+      Ingestion into a standard log group. This is usually the dominant CloudWatch
+      Logs charge and the hardest to predict, since volume varies by orders of
+      magnitude between applications.
+  - id: logs-ingestion-infrequent
+    dimension: Logs-Ingestion-GB
+    rate: "0.25"
+    unit: GB
+    attributes: {logGroupClass: INFREQUENT_ACCESS}
+  - id: logs-storage
+    dimension: Logs-Storage-GB-Month
+    rate: "0.03"
+    unit: GB-Mo
+    description: Archived log storage, per GB-month of retained data

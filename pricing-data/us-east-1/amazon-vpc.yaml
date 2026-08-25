@@ -1,0 +1,24 @@
+# Approximate, unverified. See ../manifest.yaml before relying on any figure.
+version: 1
+service: AmazonVPC
+region: us-east-1
+currency: USD
+
+prices:
+  - id: nat-gateway-hours
+    dimension: NatGateway-Hours
+    rate: "0.045"
+    unit: Hrs
+    description: NAT Gateway, per gateway-hour
+
+  - id: nat-gateway-processed-gb
+    dimension: NatGateway-Bytes
+    rate: "0.045"
+    unit: GB
+    description: NAT Gateway data processing, per GB
+
+  - id: public-ipv4-hours
+    dimension: PublicIPv4-Hours
+    rate: "0.005"
+    unit: Hrs
+    description: Public IPv4 address, per address-hour

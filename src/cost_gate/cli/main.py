@@ -17,6 +17,7 @@ import typer
 from rich.console import Console
 
 from cost_gate import __version__
+from cost_gate.cli.pricing import pricing_app
 from cost_gate.config import ConfigError, load_config, write_schemas
 from cost_gate.exit_codes import ExitCode
 
@@ -35,6 +36,7 @@ app = typer.Typer(
 
 schema_app = typer.Typer(help="Work with the JSON Schemas for configuration and reports.")
 app.add_typer(schema_app, name="schema")
+app.add_typer(pricing_app, name="pricing")
 
 console = Console(stderr=True)
 

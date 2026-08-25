@@ -1,0 +1,87 @@
+# Approximate, unverified. See ../manifest.yaml before relying on any figure.
+#
+# Instance rates are Linux, shared tenancy, on-demand. A key asking for any other
+# operating system or tenancy will not match and is reported as UNKNOWN.
+version: 1
+service: AmazonEC2
+region: us-east-1
+currency: USD
+
+prices:
+  - id: ec2-t3-micro
+    dimension: InstanceHours
+    rate: "0.0104"
+    unit: Hrs
+    attributes: {instanceType: t3.micro, operatingSystem: Linux, tenancy: Shared}
+  - id: ec2-t3-small
+    dimension: InstanceHours
+    rate: "0.0208"
+    unit: Hrs
+    attributes: {instanceType: t3.small, operatingSystem: Linux, tenancy: Shared}
+  - id: ec2-t3-medium
+    dimension: InstanceHours
+    rate: "0.0416"
+    unit: Hrs
+    attributes: {instanceType: t3.medium, operatingSystem: Linux, tenancy: Shared}
+  - id: ec2-t3-large
+    dimension: InstanceHours
+    rate: "0.0832"
+    unit: Hrs
+    attributes: {instanceType: t3.large, operatingSystem: Linux, tenancy: Shared}
+  - id: ec2-m5-large
+    dimension: InstanceHours
+    rate: "0.096"
+    unit: Hrs
+    attributes: {instanceType: m5.large, operatingSystem: Linux, tenancy: Shared}
+  - id: ec2-m5-xlarge
+    dimension: InstanceHours
+    rate: "0.192"
+    unit: Hrs
+    attributes: {instanceType: m5.xlarge, operatingSystem: Linux, tenancy: Shared}
+  - id: ec2-c5-large
+    dimension: InstanceHours
+    rate: "0.085"
+    unit: Hrs
+    attributes: {instanceType: c5.large, operatingSystem: Linux, tenancy: Shared}
+  - id: ec2-r5-large
+    dimension: InstanceHours
+    rate: "0.126"
+    unit: Hrs
+    attributes: {instanceType: r5.large, operatingSystem: Linux, tenancy: Shared}
+
+  # --- EBS -----------------------------------------------------------------
+  - id: ebs-gp3-storage
+    dimension: EBS-Storage-GB-Month
+    rate: "0.08"
+    unit: GB-Mo
+    attributes: {volumeType: gp3}
+  - id: ebs-gp2-storage
+    dimension: EBS-Storage-GB-Month
+    rate: "0.10"
+    unit: GB-Mo
+    attributes: {volumeType: gp2}
+  - id: ebs-io2-storage
+    dimension: EBS-Storage-GB-Month
+    rate: "0.125"
+    unit: GB-Mo
+    attributes: {volumeType: io2}
+  - id: ebs-gp3-iops
+    dimension: EBS-IOPS-Month
+    rate: "0.005"
+    unit: IOPS-Mo
+    attributes: {volumeType: gp3}
+    description: gp3 provisioned IOPS above the 3000 included with every volume
+  - id: ebs-io2-iops
+    dimension: EBS-IOPS-Month
+    rate: "0.065"
+    unit: IOPS-Mo
+    attributes: {volumeType: io2}
+    description: >-
+      io2 provisioned IOPS, first tier. Real io2 pricing steps down at higher IOPS
+      counts, so this rate overstates cost for large volumes.
+  - id: ebs-gp3-throughput
+    dimension: EBS-Throughput-Month
+    rate: "0.04"
+    unit: MBps-Mo
+    attributes: {volumeType: gp3}
+    description: gp3 provisioned throughput above the 125 MB/s included

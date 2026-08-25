@@ -1,0 +1,30 @@
+# Approximate, unverified. See ../manifest.yaml before relying on any figure.
+version: 1
+service: AWSLambda
+region: us-east-1
+currency: USD
+
+prices:
+  - id: lambda-requests
+    dimension: Requests
+    rate: "0.0000002"
+    unit: Request
+    attributes: {architecture: x86_64}
+    description: Per request. Commonly quoted as $0.20 per million.
+  - id: lambda-gb-seconds
+    dimension: GB-Seconds
+    rate: "0.0000166667"
+    unit: GB-Second
+    attributes: {architecture: x86_64}
+    description: Per GB-second of billed duration.
+  - id: lambda-requests-arm
+    dimension: Requests
+    rate: "0.0000002"
+    unit: Request
+    attributes: {architecture: arm64}
+  - id: lambda-gb-seconds-arm
+    dimension: GB-Seconds
+    rate: "0.0000133334"
+    unit: GB-Second
+    attributes: {architecture: arm64}
+    description: arm64 duration is charged at a lower rate than x86_64.
