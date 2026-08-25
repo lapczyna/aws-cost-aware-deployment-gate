@@ -3,7 +3,7 @@
 This document is the handover note. It is updated at the end of every phase so that work can
 resume from a clean state without re-deriving decisions.
 
-**Last updated:** end of Phase 3 (2026-08-25)
+**Last updated:** end of Phase 4 (2026-08-25)
 
 ## Architecture summary
 
@@ -31,11 +31,12 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 1 | Project foundation and quality gates | `bad1629` |
 | 1a | Workflow safety checker (fix to Phase 1 CI) | `2a5f6af` |
 | 2 | Domain model and configuration schemas | `0409a6b` |
-| 3 | CloudFormation parser and normalisation | *(recorded at commit time)* |
+| 3 | CloudFormation parser and normalisation | `32464ff` |
+| 4 | Infrastructure change engine | *(recorded at commit time)* |
 
 ## Current state of the repository
 
-Domain, configuration and parsing are complete and tested. **No diffing, estimation, policy
+Domain, configuration, parsing and diffing are complete and tested. **No estimation, policy
 evaluation or reporting exists yet** — the CLI can validate configuration and export schemas.
 
 Domain (`src/cost_gate/domain/`):
@@ -75,6 +76,21 @@ Parsers (`src/cost_gate/parsers/`):
 * `normalize.py` — flattening to JSON Pointer paths, tag extraction (resolved tags only),
   attribution, `aws:cdk:path`, source locations, multi-stack directory loading.
 
+Diff (`src/cost_gate/diff/`):
+
+* `matching.py` — the ADR 0004 identity ladder: construct path, then logical ID, then the
+  hash-suffix heuristic (`LOW` confidence), then a separate ADD and REMOVE. **Every tier
+  requires the resource type to match**, because a type change at one construct path is a
+  delete-and-create, not a modification. Candidates are scored, sorted with ties broken by
+  resource key, and assigned greedily one-to-one.
+* `metadata.py` + `resource_metadata.yaml` — 21 curated types. `cost_relevant` defaults to
+  **true** (a property is opted out by being listed), `replacement` defaults to `UNKNOWN`.
+  Longest pointer-prefix wins, matched at a path boundary so `/Tags` does not cover
+  `/TagsExtra`. The YAML ships inside the wheel; verified by a clean-install check.
+* `engine.py` — REPLACE if any changed property always replaces, else MODIFY if any is
+  cost-relevant, else NO_COST_CHANGE. Only `Replacement.ALWAYS` promotes to REPLACE;
+  `CONDITIONAL` and `UNKNOWN` are surfaced without asserting anything.
+
 `yaml_bounds.py` (top level, outside the layer contract) holds the loader bounds shared by
 config and template parsing, including **duplicate-key rejection**.
 
@@ -82,7 +98,7 @@ Also: `schemas/` (4 generated files), `examples/config/` (annotated sample confi
 `tests/fixtures/templates/` (intrinsics fixture in YAML with a generated JSON sibling, plus a
 CDK-style multi-stack directory), `cost-gate validate-config` and `cost-gate schema export`.
 
-Still absent: `diff/`, `pricing/`, `estimators/`, `policies/`, `budgets/`,
+Still absent: `pricing/`, `estimators/`, `policies/`, `budgets/`,
 `recommendations/`, `reporting/`, `adapters/`, `observability/`, the pricing catalog,
 budget/policy configuration models, `infrastructure/`.
 
@@ -128,6 +144,12 @@ budget/policy configuration models, `infrastructure/`.
     down the module because names resolve at call time, so no placeholder-and-patch loop is
     needed.
 
+13. A resource key is **not unique** within a `ChangeSet`: a logical ID that keeps its name
+    but changes its resource type produces a REMOVE and an ADD sharing a key. Index by
+    `(key, operation)`. Found by a Hypothesis property, not by a hand-written case.
+14. Reusing a loop variable name for an `Optional` later in the same function makes mypy
+    report an incompatible assignment; give the second binding its own name.
+
 ## Verification commands
 
 ```bash
@@ -137,13 +159,16 @@ python -m cost_gate.cli.main validate-config --config examples/config/cost-gate.
 python -m cost_gate.cli.main schema export --out schemas
 ```
 
-Last full run (Phase 3): Ruff clean, mypy strict clean over 36 files, import-linter 2 contracts
-kept, **453 tests passed**, pip-audit reports no known vulnerabilities, safety checker green.
+Last full run (Phase 4): Ruff clean, mypy strict clean over 39 files, import-linter 2 contracts
+kept, **517 tests passed**, pip-audit reports no known vulnerabilities, safety checker green,
+wheel builds and ships the curated metadata.
 
 ## Current limitations
 
 * No cost estimation exists. The CLI validates configuration and exports schemas only.
-* Nothing yet *compares* two graphs; that is Phase 4.
+* Nothing yet *prices* a change; that is Phases 5-7.
+* The curated metadata covers 21 resource types. Anything else diffs correctly but with
+  `cost_relevant=True` and `replacement=UNKNOWN` on every property.
 * `Fn::ForEach`, `Fn::Length` and `Fn::ToJsonString` are recognised but deliberately
   unresolved. Cross-stack `Fn::ImportValue` is unresolvable by design.
 * The pricing catalog is still an empty placeholder directory.
@@ -163,31 +188,28 @@ kept, **453 tests passed**, pip-audit reports no known vulnerabilities, safety c
 
 ## Exact recommended next action
 
-**Phase 4 — infrastructure change engine.** Implement `src/cost_gate/diff/`:
+**Phase 5 — pricing provider framework.** Implement `src/cost_gate/pricing/`:
 
-* `metadata.py` + `resource-metadata.yaml` — curated per supported resource type, declaring
-  for each property path `cost_relevant: bool` and
-  `replacement: ALWAYS | CONDITIONAL | NEVER`. Unsupported types get `UNKNOWN` replacement
-  behaviour, never an optimistic `NEVER`.
-* `matching.py` — the identity ladder from ADR 0004, applied deterministically and one-to-one:
-  1. same stack + same `construct_path` (`CONSTRUCT_PATH`, `HIGH`)
-  2. same stack + same logical ID (`LOGICAL_ID`, `HIGH`)
-  3. same type + logical IDs equal after stripping a trailing CDK hash suffix
-     (`HEURISTIC`, `LOW`, always surfaced in the report)
-  4. otherwise a separate `ADD` and `REMOVE` — never a silent pairing
-  Score candidates, sort descending with ties broken by logical ID, assign greedily.
-* `engine.py` — produce the `ChangeSet`: compare flattened property maps to build
-  `PropertyDelta`s, promote `MODIFY` to `REPLACE` when a changed property has
-  `replacement: ALWAYS`, and emit `NO_COST_CHANGE` when only non-cost-relevant paths differ
-  (still listed, with a zero delta, so a reader can see the tool considered it).
+* `keys.py` — `PriceKey(service, dimension, region, attributes)`, structured rather than a
+  string, because mapping CloudFormation properties onto a pricing product is the genuinely
+  hard part of this problem.
+* `provider.py` — the `PricingProvider` protocol returning `PriceQuote | PriceNotFound`, plus
+  `catalog_metadata()`. **No fallback rate, no nearest match, no zero**: a missing price
+  becomes a visible `UNKNOWN` component.
+* `catalog.py` — `FixtureCatalogProvider` reading `pricing-data/`, which currently holds only
+  a README. Create `pricing-data/manifest.yaml` (region, currency, `captured_at`,
+  `authoritative: false`, coverage, limitations), `pricing-data/us-east-1/*.yaml`, and
+  `catalog.lock.json` with a sha256 per file.
+* `cache.py` — a caching decorator with TTL and hit-rate counters.
+* `chain.py` — ordered fallback, used only when explicitly configured (ADR 0005).
+* CLI: `cost-gate pricing show|verify`, where `verify` checks the lock file.
 
-Tests: the CDK logical-ID-churn scenario (a resized database must be one `MODIFY`, not an
-`ADD` plus a `REMOVE`); reversal (`diff(a, b)` is the inverse of `diff(b, a)`); shuffled input
-producing an identical `ChangeSet`; heuristic matches labelled `LOW`; unsupported types
-carrying `UNKNOWN` replacement.
+Prices are hand-curated approximate us-east-1 on-demand **list** prices with a recorded
+capture date, labelled non-authoritative in the manifest and in every report footer. They are
+illustrative, and the documentation must keep saying so.
 
-The domain models are already in place (`ResourceChange`, `PropertyDelta`, `ChangeSet`) and
-their validators reject a reversed comparison and refuse to pair unmatched resources, so the
-engine has to satisfy them rather than being trusted to behave.
+Tests: a shared provider conformance suite (a `PricingProvider` contract every implementation
+must satisfy), `PriceNotFound` producing an unknown rather than a guess, and `pricing verify`
+detecting a tampered catalog.
 
-Commit message: `feat: detect pricing-relevant infrastructure changes`
+Commit message: `feat: establish deterministic pricing provider framework`

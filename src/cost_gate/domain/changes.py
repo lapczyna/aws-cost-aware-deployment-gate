@@ -12,25 +12,11 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from cost_gate.domain.enums import ChangeOperation, Confidence, MatchMethod
+from cost_gate.domain.enums import ChangeOperation, Confidence, MatchMethod, Replacement
 from cost_gate.domain.resources import NormalizedResource, ResourceKey
 from cost_gate.domain.values import PropertyValue
 
-__all__ = ["ChangeSet", "PropertyDelta", "ReplacementBehaviour", "ResourceChange"]
-
-
-class ReplacementBehaviour(BaseModel):
-    """Whether changing a property replaces the resource.
-
-    Curated per resource type from the CloudFormation resource reference. Unsupported
-    types get ``UNKNOWN`` rather than an optimistic ``NEVER``: assuming an unknown
-    property change is harmless is exactly the assumption that loses a database.
-    """
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    behaviour: str = "UNKNOWN"
-    """One of ``ALWAYS``, ``CONDITIONAL``, ``NEVER`` or ``UNKNOWN``."""
+__all__ = ["ChangeSet", "PropertyDelta", "ResourceChange"]
 
 
 class PropertyDelta(BaseModel):
@@ -44,13 +30,27 @@ class PropertyDelta(BaseModel):
     before: PropertyValue | None = None
     after: PropertyValue | None = None
 
-    cost_relevant: bool = False
+    cost_relevant: bool = True
     """Whether this property can affect price, from the curated type metadata.
-    A property that is not cost-relevant is still reported, with a zero delta, so that
-    a reader can see the tool considered it rather than missed it."""
 
-    causes_replacement: bool = False
-    """Whether this change forces the resource to be replaced."""
+    Defaults to ``True``, and a property is opted *out* by being listed explicitly.
+    The failure modes are asymmetric: treating an irrelevant property as relevant adds
+    a zero-delta line to a report, while treating a relevant one as irrelevant hides a
+    cost. A property that is not cost-relevant is still reported, so a reader can see
+    the tool considered it rather than missed it."""
+
+    replacement: Replacement = Replacement.UNKNOWN
+    """Whether changing this property replaces the resource."""
+
+    @property
+    def causes_replacement(self) -> bool:
+        """Whether this change definitely forces a replacement.
+
+        ``CONDITIONAL`` and ``UNKNOWN`` deliberately do not promote a modification to a
+        replacement — the tool would be asserting something it has not established —
+        but both are surfaced in the report.
+        """
+        return self.replacement is Replacement.ALWAYS
 
     @model_validator(mode="after")
     def _something_changed(self) -> Self:
@@ -73,6 +73,13 @@ class ResourceChange(BaseModel):
     before: NormalizedResource | None = None
     after: NormalizedResource | None = None
     changed_properties: tuple[PropertyDelta, ...] = ()
+
+    previous_key: ResourceKey | None = None
+    """The baseline identity, when the logical ID changed between revisions.
+
+    CDK rehashes logical IDs, so a resource can keep its identity while changing its
+    name. Recording both is what lets a report say *which* name it used to have,
+    rather than quietly presenting the new one as though it had always been there."""
 
     match_method: MatchMethod = MatchMethod.UNMATCHED
     match_confidence: Confidence = Confidence.HIGH
@@ -100,8 +107,12 @@ class ResourceChange(BaseModel):
                 "proposed state"
             )
 
-        if self.before is not None and self.before.key != self.key:
+        if self.before is not None and self.before.key not in (self.key, self.previous_key):
             raise ValueError(f"{self.key}: baseline state belongs to {self.before.key}")
+        if self.previous_key is not None and self.previous_key == self.key:
+            raise ValueError(
+                f"{self.key}: previous_key is only set when the logical ID actually changed"
+            )
         if self.after is not None and self.after.key != self.key:
             raise ValueError(f"{self.key}: proposed state belongs to {self.after.key}")
 
@@ -115,6 +126,11 @@ class ResourceChange(BaseModel):
                 "unmatched resources are reported as a separate ADD and REMOVE"
             )
         return self
+
+    @property
+    def was_renamed(self) -> bool:
+        """Whether the logical ID changed between the two revisions."""
+        return self.previous_key is not None
 
     @property
     def is_cost_relevant(self) -> bool:
@@ -133,7 +149,13 @@ class ResourceChange(BaseModel):
 
 
 class ChangeSet(BaseModel):
-    """Every difference between a baseline snapshot and a proposed snapshot."""
+    """Every difference between a baseline snapshot and a proposed snapshot.
+
+    **A resource key is not unique within a change set.** When a logical ID keeps its
+    name but changes its resource type, CloudFormation deletes and recreates, and this
+    is reported faithfully as a ``REMOVE`` and an ``ADD`` that share a key. Index by
+    ``(key, operation)`` rather than by key alone.
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 

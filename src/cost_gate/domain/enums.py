@@ -27,6 +27,7 @@ __all__ = [
     "MatchMethod",
     "PolicyAction",
     "PurchaseOption",
+    "Replacement",
     "Severity",
     "ValueProvenance",
     "most_specific_provenance",
@@ -194,6 +195,28 @@ class ChangeOperation(StrEnum):
 
     UNKNOWN = "UNKNOWN"
     """The nature of the change could not be established."""
+
+
+class Replacement(StrEnum):
+    """Whether changing a property forces CloudFormation to replace the resource.
+
+    Curated per resource type from the CloudFormation resource reference. A property
+    the curated table does not cover is ``UNKNOWN``, never an optimistic ``NEVER``:
+    assuming an unrecognised property change is harmless is exactly the assumption that
+    loses a database.
+    """
+
+    NEVER = "NEVER"
+    """Updated in place."""
+
+    CONDITIONAL = "CONDITIONAL"
+    """Replacement depends on the old and new values, or on other properties."""
+
+    ALWAYS = "ALWAYS"
+    """Always replaces the resource."""
+
+    UNKNOWN = "UNKNOWN"
+    """Not covered by the curated table."""
 
 
 class MatchMethod(StrEnum):

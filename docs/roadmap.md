@@ -10,7 +10,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 1 | Project foundation and quality gates | done | see git log |
 | 2 | Domain model and configuration schemas | done | see git log |
 | 3 | CloudFormation parser and normalisation | done | see git log |
-| 4 | Infrastructure change engine | planned | |
+| 4 | Infrastructure change engine | done | see git log |
 | 5 | Pricing provider framework | planned | |
 | 6 | Fixed-cost AWS estimators | planned | |
 | 7 | Usage-based estimators | planned | |

@@ -1,0 +1,234 @@
+# Curated per-property metadata for supported AWS resource types.
+#
+# Two facts per property path:
+#
+#   cost_relevant  - can changing this move the bill?
+#   replacement    - does changing it replace the resource? (from the CloudFormation
+#                    resource reference: NEVER | CONDITIONAL | ALWAYS)
+#
+# Defaults, and why they lean the way they do:
+#
+#   cost_relevant defaults to TRUE. A property is opted out by being listed here with
+#   `cost_relevant: false`. The failure modes are asymmetric — calling an irrelevant
+#   property relevant adds a zero-delta line to a report, while calling a relevant one
+#   irrelevant hides a cost — so the default is the noisy direction, not the quiet one.
+#   This is also what makes NO_COST_CHANGE meaningful: a change only earns it when
+#   every property that moved is explicitly known to be free.
+#
+#   replacement defaults to UNKNOWN. Only ALWAYS promotes a MODIFY to a REPLACE;
+#   CONDITIONAL and UNKNOWN are surfaced without the tool asserting something it has
+#   not established.
+#
+# Paths are JSON Pointer prefixes relative to the resource's Properties, so `/Tags`
+# covers `/Tags/0/Key`. The longest matching prefix wins.
+version: 1
+
+# Applied to every resource type unless the type overrides them.
+defaults:
+  "/Tags": { cost_relevant: false, replacement: NEVER }
+
+types:
+  # --- Fixed-cost resources (Phase 6 estimator targets) --------------------
+
+  AWS::EC2::NatGateway:
+    properties:
+      "/SubnetId": { cost_relevant: false, replacement: ALWAYS }
+      "/ConnectivityType":
+        cost_relevant: true
+        replacement: ALWAYS
+        note: >-
+          The gateway's own hourly rate does not depend on this, but a public gateway
+          requires an Elastic IP, which is separately chargeable.
+      "/AllocationId": { cost_relevant: false, replacement: ALWAYS }
+      "/PrivateIpAddress": { cost_relevant: false, replacement: ALWAYS }
+
+  AWS::EC2::EIP:
+    properties:
+      "/Domain": { cost_relevant: false, replacement: ALWAYS }
+      "/InstanceId": { cost_relevant: false, replacement: NEVER }
+      "/NetworkBorderGroup": { cost_relevant: false, replacement: ALWAYS }
+      "/PublicIpv4Pool": { cost_relevant: false, replacement: ALWAYS }
+
+  AWS::EKS::Cluster:
+    properties:
+      "/Name": { cost_relevant: false, replacement: ALWAYS }
+      "/RoleArn": { cost_relevant: false, replacement: ALWAYS }
+      "/ResourcesVpcConfig": { cost_relevant: false, replacement: CONDITIONAL }
+      "/Version":
+        cost_relevant: true
+        replacement: CONDITIONAL
+        note: >-
+          Control-plane pricing is version-independent while a version is in standard
+          support, but versions in extended support are charged at a higher rate.
+      "/Logging": { cost_relevant: true, replacement: NEVER }
+
+  AWS::ElasticLoadBalancingV2::LoadBalancer:
+    properties:
+      "/Type": { cost_relevant: true, replacement: ALWAYS }
+      "/Name": { cost_relevant: false, replacement: ALWAYS }
+      "/Scheme": { cost_relevant: true, replacement: ALWAYS }
+      "/IpAddressType": { cost_relevant: true, replacement: NEVER }
+      "/SecurityGroups": { cost_relevant: false, replacement: NEVER }
+      "/Subnets":
+        cost_relevant: false
+        replacement: NEVER
+        note: >-
+          Application Load Balancers are charged per load balancer hour regardless of
+          how many subnets are attached.
+      "/SubnetMappings": { cost_relevant: false, replacement: NEVER }
+      "/LoadBalancerAttributes": { cost_relevant: false, replacement: NEVER }
+
+  AWS::EC2::Instance:
+    properties:
+      "/InstanceType": { cost_relevant: true, replacement: NEVER }
+      "/ImageId": { cost_relevant: true, replacement: ALWAYS }
+      "/AvailabilityZone": { cost_relevant: false, replacement: ALWAYS }
+      "/SubnetId": { cost_relevant: false, replacement: ALWAYS }
+      "/KeyName": { cost_relevant: false, replacement: ALWAYS }
+      "/SecurityGroupIds": { cost_relevant: false, replacement: NEVER }
+      "/IamInstanceProfile": { cost_relevant: false, replacement: NEVER }
+      "/UserData": { cost_relevant: false, replacement: CONDITIONAL }
+      "/Monitoring": { cost_relevant: true, replacement: NEVER }
+      "/EbsOptimized": { cost_relevant: true, replacement: NEVER }
+      "/BlockDeviceMappings": { cost_relevant: true, replacement: CONDITIONAL }
+      "/LaunchTemplate": { cost_relevant: true, replacement: NEVER }
+
+  AWS::EC2::Volume:
+    properties:
+      "/Size": { cost_relevant: true, replacement: NEVER }
+      "/VolumeType": { cost_relevant: true, replacement: NEVER }
+      "/Iops": { cost_relevant: true, replacement: NEVER }
+      "/Throughput": { cost_relevant: true, replacement: NEVER }
+      "/Encrypted": { cost_relevant: true, replacement: ALWAYS }
+      "/AvailabilityZone": { cost_relevant: false, replacement: ALWAYS }
+      "/SnapshotId": { cost_relevant: false, replacement: ALWAYS }
+      "/KmsKeyId": { cost_relevant: false, replacement: ALWAYS }
+
+  AWS::RDS::DBInstance:
+    properties:
+      "/DBInstanceClass": { cost_relevant: true, replacement: NEVER }
+      "/AllocatedStorage": { cost_relevant: true, replacement: NEVER }
+      "/MaxAllocatedStorage": { cost_relevant: true, replacement: NEVER }
+      "/StorageType": { cost_relevant: true, replacement: NEVER }
+      "/Iops": { cost_relevant: true, replacement: NEVER }
+      "/StorageThroughput": { cost_relevant: true, replacement: NEVER }
+      "/MultiAZ": { cost_relevant: true, replacement: NEVER }
+      "/Engine": { cost_relevant: true, replacement: ALWAYS }
+      "/EngineVersion": { cost_relevant: true, replacement: CONDITIONAL }
+      "/LicenseModel": { cost_relevant: true, replacement: NEVER }
+      "/BackupRetentionPeriod":
+        cost_relevant: true
+        replacement: NEVER
+        note: Backup storage beyond the free allocation is chargeable.
+      "/PerformanceInsightsEnabled": { cost_relevant: true, replacement: NEVER }
+      "/PerformanceInsightsRetentionPeriod": { cost_relevant: true, replacement: NEVER }
+      "/DBInstanceIdentifier": { cost_relevant: false, replacement: ALWAYS }
+      "/DBSubnetGroupName": { cost_relevant: false, replacement: ALWAYS }
+      "/MasterUsername": { cost_relevant: false, replacement: ALWAYS }
+      "/MasterUserPassword": { cost_relevant: false, replacement: NEVER }
+      "/VPCSecurityGroups": { cost_relevant: false, replacement: NEVER }
+      "/PubliclyAccessible": { cost_relevant: false, replacement: CONDITIONAL }
+      "/DeletionProtection": { cost_relevant: false, replacement: NEVER }
+
+  AWS::RDS::DBCluster:
+    properties:
+      "/Engine": { cost_relevant: true, replacement: ALWAYS }
+      "/EngineMode": { cost_relevant: true, replacement: CONDITIONAL }
+      "/EngineVersion": { cost_relevant: true, replacement: CONDITIONAL }
+      "/ServerlessV2ScalingConfiguration": { cost_relevant: true, replacement: NEVER }
+      "/StorageType": { cost_relevant: true, replacement: NEVER }
+      "/BackupRetentionPeriod": { cost_relevant: true, replacement: NEVER }
+      "/DBClusterIdentifier": { cost_relevant: false, replacement: ALWAYS }
+      "/MasterUsername": { cost_relevant: false, replacement: ALWAYS }
+      "/DeletionProtection": { cost_relevant: false, replacement: NEVER }
+
+  # --- Usage-based resources (Phase 7 estimator targets) -------------------
+
+  AWS::Lambda::Function:
+    properties:
+      "/MemorySize": { cost_relevant: true, replacement: NEVER }
+      "/Architectures": { cost_relevant: true, replacement: NEVER }
+      "/EphemeralStorage": { cost_relevant: true, replacement: NEVER }
+      "/Timeout":
+        cost_relevant: true
+        replacement: NEVER
+        note: >-
+          Does not change the price of an invocation, but bounds the billed duration a
+          single invocation can reach.
+      "/FunctionName": { cost_relevant: false, replacement: ALWAYS }
+      "/Runtime": { cost_relevant: false, replacement: NEVER }
+      "/Handler": { cost_relevant: false, replacement: NEVER }
+      "/Code": { cost_relevant: false, replacement: NEVER }
+      "/Role": { cost_relevant: false, replacement: NEVER }
+      "/Environment": { cost_relevant: false, replacement: NEVER }
+      "/Description": { cost_relevant: false, replacement: NEVER }
+
+  AWS::DynamoDB::Table:
+    properties:
+      "/BillingMode": { cost_relevant: true, replacement: NEVER }
+      "/ProvisionedThroughput": { cost_relevant: true, replacement: NEVER }
+      "/TableClass": { cost_relevant: true, replacement: NEVER }
+      "/GlobalSecondaryIndexes": { cost_relevant: true, replacement: NEVER }
+      "/LocalSecondaryIndexes": { cost_relevant: true, replacement: ALWAYS }
+      "/StreamSpecification": { cost_relevant: true, replacement: NEVER }
+      "/PointInTimeRecoverySpecification": { cost_relevant: true, replacement: NEVER }
+      "/DeletionProtectionEnabled": { cost_relevant: false, replacement: NEVER }
+      "/TableName": { cost_relevant: false, replacement: ALWAYS }
+      "/KeySchema": { cost_relevant: false, replacement: ALWAYS }
+      "/AttributeDefinitions": { cost_relevant: false, replacement: NEVER }
+
+  AWS::S3::Bucket:
+    properties:
+      "/LifecycleConfiguration": { cost_relevant: true, replacement: NEVER }
+      "/VersioningConfiguration": { cost_relevant: true, replacement: NEVER }
+      "/IntelligentTieringConfigurations": { cost_relevant: true, replacement: NEVER }
+      "/ReplicationConfiguration": { cost_relevant: true, replacement: NEVER }
+      "/BucketName": { cost_relevant: false, replacement: ALWAYS }
+      "/PublicAccessBlockConfiguration": { cost_relevant: false, replacement: NEVER }
+      "/BucketEncryption": { cost_relevant: false, replacement: NEVER }
+      "/CorsConfiguration": { cost_relevant: false, replacement: NEVER }
+
+  AWS::Logs::LogGroup:
+    properties:
+      "/RetentionInDays": { cost_relevant: true, replacement: NEVER }
+      "/LogGroupClass": { cost_relevant: true, replacement: ALWAYS }
+      "/LogGroupName": { cost_relevant: false, replacement: ALWAYS }
+      "/KmsKeyId": { cost_relevant: false, replacement: NEVER }
+
+  AWS::ApiGatewayV2::Api:
+    properties:
+      "/ProtocolType": { cost_relevant: true, replacement: ALWAYS }
+      "/Name": { cost_relevant: false, replacement: NEVER }
+      "/Description": { cost_relevant: false, replacement: NEVER }
+      "/CorsConfiguration": { cost_relevant: false, replacement: NEVER }
+
+  AWS::ApiGateway::RestApi:
+    properties:
+      "/EndpointConfiguration": { cost_relevant: true, replacement: NEVER }
+      "/Name": { cost_relevant: false, replacement: NEVER }
+      "/Description": { cost_relevant: false, replacement: NEVER }
+
+  # --- Types with no chargeable dimension of their own ---------------------
+  # Listed so that changes to them are correctly classified as cost-neutral rather
+  # than merely unrecognised.
+
+  AWS::EC2::SecurityGroup:
+    cost_free: true
+
+  AWS::EC2::Subnet:
+    cost_free: true
+
+  AWS::EC2::RouteTable:
+    cost_free: true
+
+  AWS::EC2::Route:
+    cost_free: true
+
+  AWS::IAM::Role:
+    cost_free: true
+
+  AWS::IAM::Policy:
+    cost_free: true
+
+  AWS::EC2::VPC:
+    cost_free: true
