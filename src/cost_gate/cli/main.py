@@ -10,15 +10,18 @@ Diagnostics go to stderr and machine-readable output goes to stdout, so that
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Annotated
 
 import typer
 from rich.console import Console
+from rich.table import Table
 
 from cost_gate import __version__
 from cost_gate.cli.pricing import pricing_app
 from cost_gate.config import ConfigError, load_config, write_schemas
+from cost_gate.estimators import COST_FREE_TYPES, default_registry
 from cost_gate.exit_codes import ExitCode
 
 __all__ = ["app", "main"]
@@ -105,6 +108,54 @@ def validate_config(
         console.print(f"  usage profile    {environments}")
     else:
         console.print("  usage profile    (none configured)")
+
+
+@app.command("list-supported-resources")
+def list_supported_resources(
+    output_format: Annotated[
+        str,
+        typer.Option("--format", "-f", help="table or json."),
+    ] = "table",
+) -> None:
+    """List the AWS resource types this version can price.
+
+    Read from the estimator registry rather than from a hand-maintained list, so the
+    tool cannot claim coverage it does not have. Anything absent here is reported as a
+    visible UNKNOWN rather than assumed to cost nothing.
+    """
+    registry = default_registry()
+    coverage = registry.coverage()
+
+    if output_format == "json":
+        typer.echo(
+            json.dumps(
+                {
+                    "priced": [
+                        {"resource_type": resource_type, "estimator": estimator}
+                        for resource_type, estimator in coverage
+                    ],
+                    "known_cost_free": sorted(COST_FREE_TYPES),
+                },
+                indent=2,
+            )
+        )
+        return
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("resource type")
+    table.add_column("estimator")
+    for resource_type, estimator in coverage:
+        table.add_row(resource_type, estimator)
+    console.print(table)
+    console.print(f"{len(coverage)} priced resource type(s)")
+    console.print(
+        f"{len(COST_FREE_TYPES)} further type(s) are known to carry no charge of their own "
+        "and are reported as free rather than unknown."
+    )
+    console.print(
+        "[yellow]Every other resource type produces a visible UNKNOWN component. "
+        "Unsupported resources are never assumed to be free.[/yellow]"
+    )
 
 
 @schema_app.command("export")

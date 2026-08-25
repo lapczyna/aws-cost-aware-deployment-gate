@@ -60,3 +60,70 @@ prices:
     rate: "0.095"
     unit: GB-Mo
     description: Backup storage beyond the allocation included with the instance
+
+  # --- Multi-AZ -------------------------------------------------------------
+  # Held as real entries rather than applied as a multiplier in code. A multiplier
+  # would be a nearest-match, which this project forbids everywhere else; if a
+  # combination is absent it must resolve to UNKNOWN, not to an adjusted guess.
+  - id: rds-db-t3-micro-postgres-multi-az
+    dimension: InstanceHours
+    rate: "0.036"
+    unit: Hrs
+    attributes: {instanceClass: db.t3.micro, engine: postgres, deploymentOption: Multi-AZ}
+  - id: rds-db-t3-small-postgres-multi-az
+    dimension: InstanceHours
+    rate: "0.072"
+    unit: Hrs
+    attributes: {instanceClass: db.t3.small, engine: postgres, deploymentOption: Multi-AZ}
+  - id: rds-db-t3-medium-postgres-multi-az
+    dimension: InstanceHours
+    rate: "0.144"
+    unit: Hrs
+    attributes: {instanceClass: db.t3.medium, engine: postgres, deploymentOption: Multi-AZ}
+  - id: rds-db-t3-large-postgres-multi-az
+    dimension: InstanceHours
+    rate: "0.290"
+    unit: Hrs
+    attributes: {instanceClass: db.t3.large, engine: postgres, deploymentOption: Multi-AZ}
+  - id: rds-db-m5-large-postgres-multi-az
+    dimension: InstanceHours
+    rate: "0.356"
+    unit: Hrs
+    attributes: {instanceClass: db.m5.large, engine: postgres, deploymentOption: Multi-AZ}
+  - id: rds-db-r6g-large-postgres-multi-az
+    dimension: InstanceHours
+    rate: "0.452"
+    unit: Hrs
+    attributes: {instanceClass: db.r6g.large, engine: postgres, deploymentOption: Multi-AZ}
+  - id: rds-db-r6g-xlarge-postgres-multi-az
+    dimension: InstanceHours
+    rate: "0.904"
+    unit: Hrs
+    attributes: {instanceClass: db.r6g.xlarge, engine: postgres, deploymentOption: Multi-AZ}
+
+  # --- MySQL ----------------------------------------------------------------
+  - id: rds-db-t3-micro-mysql
+    dimension: InstanceHours
+    rate: "0.017"
+    unit: Hrs
+    attributes: {instanceClass: db.t3.micro, engine: mysql, deploymentOption: Single-AZ}
+  - id: rds-db-t3-small-mysql
+    dimension: InstanceHours
+    rate: "0.034"
+    unit: Hrs
+    attributes: {instanceClass: db.t3.small, engine: mysql, deploymentOption: Single-AZ}
+  - id: rds-db-t3-medium-mysql
+    dimension: InstanceHours
+    rate: "0.068"
+    unit: Hrs
+    attributes: {instanceClass: db.t3.medium, engine: mysql, deploymentOption: Single-AZ}
+  - id: rds-db-t3-large-mysql
+    dimension: InstanceHours
+    rate: "0.136"
+    unit: Hrs
+    attributes: {instanceClass: db.t3.large, engine: mysql, deploymentOption: Single-AZ}
+  - id: rds-db-m5-large-mysql
+    dimension: InstanceHours
+    rate: "0.171"
+    unit: Hrs
+    attributes: {instanceClass: db.m5.large, engine: mysql, deploymentOption: Single-AZ}

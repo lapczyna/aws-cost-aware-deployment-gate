@@ -93,6 +93,25 @@ A schedule is converted with a fixed weeks-per-month factor of `730 / 168`, so t
 deterministic and does not depend on which month the tool happens to run in. The computed hours
 and the rule used are both emitted as assumptions.
 
+### Stoppable resources versus always-on ones
+
+A schedule applies only to resources that are genuinely *started and stopped*. It does
+not apply to resources that merely exist or do not.
+
+| Basis | Resources | Runtime used |
+|---|---|---|
+| `STOPPABLE` | EC2 instances, RDS instances | the environment's schedule |
+| `ALWAYS_ON` | NAT Gateways, EKS control planes, load balancers, Elastic IPs, EBS volumes | the full monthly-hours convention |
+
+Applying a 260-hour development profile to a NAT Gateway would understate it by roughly
+two thirds, because "working hours" means the instances are stopped overnight, not that
+the gateway is deleted at 8pm and recreated at 8am. A stopped EC2 instance still pays for
+its EBS volumes, for the same reason.
+
+The one exception is an environment declaring `expected_lifetime_hours`. That says the
+whole environment is torn down, which *is* the case where an always-on resource runs for
+less than a month, so it overrides both.
+
 Important honesty note: **a schedule is a statement of intent, not a control.** Declaring
 `Mon-Fri 08:00-20:00` does not stop an instance running at the weekend. The report labels these
 values as assumptions, and the recommendation engine suggests implementing the schedule (for

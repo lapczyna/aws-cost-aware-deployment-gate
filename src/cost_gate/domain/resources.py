@@ -175,6 +175,18 @@ class NormalizedResource(BaseModel):
         """Return a property's literal value, or ``None`` if absent or unresolved."""
         return resolved_or_none(self.property_value(*tokens))
 
+    def has_property(self, *tokens: str | int) -> bool:
+        """Whether anything exists at or below a path.
+
+        Properties are flattened to leaves, so a nested object such as
+        ``LaunchTemplate`` never appears as a key in its own right - only
+        ``/LaunchTemplate/Version`` does. Testing for the parent with
+        :meth:`property_value` therefore always answers "absent", which is why this
+        prefix-aware check exists.
+        """
+        prefix = property_path(*tokens)
+        return any(path == prefix or path.startswith(prefix + "/") for path in self.properties)
+
 
 class ResourceGraph(BaseModel):
     """One infrastructure snapshot: every resource across every stack."""

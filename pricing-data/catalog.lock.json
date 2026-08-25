@@ -6,7 +6,7 @@
     "us-east-1/amazon-dynamodb.yaml": "sha256:5a40aaf5b5383fbaa316c34c61fb636966183e5c036c26100fac70829d91d7ad",
     "us-east-1/amazon-ec2.yaml": "sha256:7d3ba27ecc97368f0d74227a119f5da78399bc9495da3a97811c75305bacc32a",
     "us-east-1/amazon-eks.yaml": "sha256:496119973a6540dabc57cf2e533a24eaa414a4578ed2c179520048fb2bd6db55",
-    "us-east-1/amazon-rds.yaml": "sha256:093a2ed37d25a21add09312b3cf77471639e889aaa1f64165b04bc5566b87914",
+    "us-east-1/amazon-rds.yaml": "sha256:b792dda25fb4dab8f83b0908f3660ee9174f40b909d88753ba53eac1d1d80176",
     "us-east-1/amazon-s3.yaml": "sha256:4ade1ea90d61ea25c693c8e2a98b50ad859b6ff578bd8c020355e25d8ecd6e83",
     "us-east-1/amazon-vpc.yaml": "sha256:7a845f0fb221b9f1e186c4761a28d2a6ec7f71f093f2ad23627edf84e15897bb",
     "us-east-1/aws-lambda.yaml": "sha256:8ee17bee742dbd40127ba4151ee746a93f1657dbccc4ed9f1aa6994b2a04fecc",

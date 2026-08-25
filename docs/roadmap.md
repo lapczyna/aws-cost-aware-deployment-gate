@@ -12,7 +12,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 3 | CloudFormation parser and normalisation | done | see git log |
 | 4 | Infrastructure change engine | done | see git log |
 | 5 | Pricing provider framework | done | see git log |
-| 6 | Fixed-cost AWS estimators | planned | |
+| 6 | Fixed-cost AWS estimators | done | see git log |
 | 7 | Usage-based estimators | planned | |
 | 8 | AWS Price List adapter (optional provider) | planned | |
 | 9 | Budget and policy engine | planned | |
@@ -51,13 +51,14 @@ Phases 0–14 constitute the MVP. Phases 15–18 are secondary and may be reorde
 
 | Resource type | Status |
 |---|---|
-| `AWS::EC2::NatGateway` | planned |
-| `AWS::EKS::Cluster` (control plane) | planned |
-| `AWS::ElasticLoadBalancingV2::LoadBalancer` | planned |
-| `AWS::EC2::Instance` | planned |
-| `AWS::EC2::Volume` | planned |
-| `AWS::RDS::DBInstance` / `AWS::RDS::DBCluster` storage | planned |
-| `AWS::EC2::EIP` | planned |
+| `AWS::EC2::NatGateway` | done |
+| `AWS::EKS::Cluster` (control plane) | done |
+| `AWS::ElasticLoadBalancingV2::LoadBalancer` | done |
+| `AWS::EC2::Instance` | done |
+| `AWS::EC2::Volume` | done |
+| `AWS::RDS::DBInstance` (instance + storage) | done |
+| `AWS::RDS::DBCluster` | deferred |
+| `AWS::EC2::EIP` | done |
 
 **Phase 7 — usage-based**
 

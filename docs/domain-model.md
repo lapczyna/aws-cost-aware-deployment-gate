@@ -223,6 +223,14 @@ Confidence is derived from a documented table, never assigned ad hoc, and always
 | Tiered pricing with no usage split available | `LOW` | "tiered pricing estimated at first-tier rate" |
 | Unresolved intrinsic on a pricing-relevant property | `UNKNOWN` | "InstanceType depends on unresolved parameter" |
 | No estimator registered for the resource type | `UNKNOWN` | "resource type not supported" |
+| No catalog rate for the exact product requested | `UNKNOWN` | "no db.t3.medium/oracle-ee/Single-AZ rate" |
+| Fixed rate, but a rate-determining property is unobservable from the template | `LOW` | "operating system assumed Linux; the AMI decides it" |
+| Fixed rate, quantity from the template, no runtime assumption involved | `HIGH` | "100 GB provisioned, resolved from the template" |
+
+A note on runtime, because it cuts across every fixed-cost estimate. Assuming a resource
+runs for the whole month is an assumption, so a fixed rate applied over assumed hours is
+`MEDIUM` rather than `HIGH`. A *quantity* read from the template, such as a volume's
+provisioned size, is `HIGH`, because no runtime assumption enters into it at all.
 
 **Report-level confidence** is the worst confidence among components, weighted by absolute
 delta: a `LOW`-confidence component contributing $0.02 does not drag an otherwise `HIGH`

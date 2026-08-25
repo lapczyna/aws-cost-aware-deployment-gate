@@ -3,7 +3,7 @@
 This document is the handover note. It is updated at the end of every phase so that work can
 resume from a clean state without re-deriving decisions.
 
-**Last updated:** end of Phase 5 (2026-08-25)
+**Last updated:** end of Phase 6 (2026-08-25)
 
 ## Architecture summary
 
@@ -33,13 +33,14 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 2 | Domain model and configuration schemas | `0409a6b` |
 | 3 | CloudFormation parser and normalisation | `32464ff` |
 | 4 | Infrastructure change engine | `9b381ec` |
-| 5 | Pricing provider framework | *(recorded at commit time)* |
+| 5 | Pricing provider framework | `25f15be` |
+| 6 | Fixed-cost AWS estimators | *(recorded at commit time)* |
 
 ## Current state of the repository
 
-Domain, configuration, parsing, diffing and pricing are complete and tested. **No estimation,
-policy evaluation or reporting exists yet** — nothing yet turns a `ChangeSet` plus a
-`PricingProvider` into `CostComponent`s. That is Phase 6.
+The pipeline now produces cost estimates end to end for seven resource types. **No policy
+evaluation, budgets or reporting exists yet** — a `CostReport` is produced but nothing
+renders or gates on it. That is Phases 9 and 11.
 
 Domain (`src/cost_gate/domain/`):
 
@@ -118,6 +119,25 @@ those words, and `authoritative: false` / `verified: false` are structural.
 CLI: `cost-gate pricing show|verify|lock`, and `refresh` which honestly reports that it
 arrives in Phase 8 rather than silently doing nothing.
 
+Estimators (`src/cost_gate/estimators/`):
+
+* `base.py` — `DimensionEstimate`, `EstimationContext` and the **`RuntimeBasis`
+  distinction**: `STOPPABLE` resources (EC2, RDS) follow the environment's schedule;
+  `ALWAYS_ON` ones (NAT Gateway, EKS, ELB, EIP, EBS) use the full monthly-hours
+  convention, because a working-hours schedule means instances are stopped, not that a
+  gateway is deleted at 8pm. `expected_lifetime_hours` overrides both.
+* `context.priced()` performs the lookup itself and turns a `PriceNotFound` into an
+  `UNKNOWN` dimension. An estimator never sees the rate, so it cannot substitute one.
+* `network.py`, `compute.py`, `database.py` — seven estimators. EC2 is deliberately `LOW`
+  confidence: the operating system comes from the AMI, which no template describes.
+* `registry.py` — coverage plus `COST_FREE_TYPES` (subnets, IAM roles, target groups),
+  which lets a report say "considered, costs nothing" rather than "unknown".
+* `engine.py` — prices **every resource in both graphs**, not only changed ones, so the
+  totals mean "the cost of this infrastructure" rather than "the cost of what moved".
+  Reuses `match_resources`, so a CDK rename is priced as one change.
+
+CLI: `cost-gate list-supported-resources` reads the registry directly.
+
 `yaml_bounds.py` (top level, outside the layer contract) holds the loader bounds shared by
 config and template parsing, including **duplicate-key rejection**.
 
@@ -125,7 +145,7 @@ Also: `schemas/` (4 generated files), `examples/config/` (annotated sample confi
 `tests/fixtures/templates/` (intrinsics fixture in YAML with a generated JSON sibling, plus a
 CDK-style multi-stack directory), `cost-gate validate-config` and `cost-gate schema export`.
 
-Still absent: `estimators/`, `policies/`, `budgets/`,
+Still absent: `policies/`, `budgets/`,
 `recommendations/`, `reporting/`, `adapters/`, `observability/`, the pricing catalog,
 budget/policy configuration models, `infrastructure/`.
 
@@ -182,6 +202,14 @@ budget/policy configuration models, `infrastructure/`.
 16. `hasattr()` does not narrow a union for mypy; use `isinstance`.
 17. Bandit's B101 flags `assert` in source regardless of a ruff `noqa`. Where an assert was
     guarding an impossible branch, returning an explicit result is better than suppressing.
+18. **Properties are flattened to leaves**, so a nested object such as `LaunchTemplate` is
+    never a key in its own right — only `/LaunchTemplate/Version` is. Use
+    `resource.has_property(...)`, which is prefix-aware; `property_value()` on a parent
+    always answers "absent".
+19. Concatenating two templates gives a document with two `Resources:` keys, which the
+    loader correctly refuses. Test helpers compose resource *bodies* under one header.
+20. mypy does not narrow a union through a separate boolean flag; check
+    `if x is None or y is None:` directly.
 
 ## Verification commands
 
@@ -192,15 +220,19 @@ python -m cost_gate.cli.main validate-config --config examples/config/cost-gate.
 python -m cost_gate.cli.main schema export --out schemas
 ```
 
-Last full run (Phase 5): Ruff clean, mypy strict clean over 44 files, import-linter 2 contracts
-kept, **647 tests passed**, pip-audit reports no known vulnerabilities, safety checker green.
+Last full run (Phase 6): Ruff clean, mypy strict clean over 50 files, import-linter 2 contracts
+kept, **726 tests passed**, pip-audit reports no known vulnerabilities, safety checker green.
 A clean-install check confirms the wheel ships both the curated resource metadata and the
 pricing catalog, and that `cost-gate pricing verify` passes against the packaged copy.
 
 ## Current limitations
 
 * No cost estimation exists. The CLI validates configuration and exports schemas only.
-* Nothing yet *prices* a change: the catalog exists, but no estimator consumes it. Phase 6.
+* Seven resource types are priced. Usage-based services (Lambda, API Gateway, DynamoDB, S3,
+  CloudWatch Logs, data transfer) arrive in Phase 7; until then they are visible unknowns.
+* Load-balancer capacity units and RDS backup storage are always unknown: no usage driver
+  models them yet.
+* `AWS::RDS::DBCluster` is deferred; it produces a visible unknown.
 * **The bundled rates are approximate and unverified.** They are adequate for demonstrating
   the mechanism and for deterministic tests, and for nothing else. Phase 8 replaces them.
 * One region (us-east-1). Any other region resolves to `PriceNotFound` by design.
@@ -226,32 +258,28 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
 
 ## Exact recommended next action
 
-**Phase 6 — fixed-cost AWS estimators.** Implement `src/cost_gate/estimators/`:
+**Phase 7 — usage-based estimators.** Add to `src/cost_gate/estimators/`:
+`lambda_.py`, `api_gateway.py`, `dynamodb.py`, `s3.py`, `cloudwatch_logs.py`, and data
+transfer. Every rate they need is already in the catalog.
 
-* `registry.py` — map `AWS::Type` to an estimator, plus an `UnsupportedResourceEstimator`
-  that emits a visible `UNKNOWN` component for everything unregistered. Back
-  `cost-gate list-supported-resources` with the live registry so coverage claims cannot
-  drift from reality.
-* `base.py` — the estimator protocol. **Estimators price a resource *state*, never a
-  change** (ADR 0003): the engine calls each one twice, for the before and after states,
-  under one usage profile and one pricing snapshot, then subtracts. An estimator that
-  receives `None` returns no components.
-* `engine.py` — walk the `ChangeSet`, call estimators, pair components by pricing
-  dimension, and build `CostComponent`s. An added resource gets `current = Money.zero()`,
-  not `None`.
-* Per-service modules: `nat_gateway.py`, `eks.py`, `load_balancer.py`, `ec2.py`, `ebs.py`,
-  `rds.py`, `eip.py`.
+The judgement each one has to make is the same, and it is the interesting part:
 
-Every component must populate `assumptions`, `confidence_reasons` and `unknown_inputs`.
-The `CostComponent` validator already refuses a known estimate with no confidence reason,
-so this is enforced rather than requested.
+* **A defensible built-in default exists** — apply it, drop confidence to `LOW`, record the
+  assumption. Lambda average duration given a configured memory size is the clearest case.
+* **No defensible default exists** — emit an `UNKNOWN` naming the missing driver. CloudWatch
+  Logs ingestion is the canonical example: volume spans four orders of magnitude between
+  applications, and guessing it is exactly the false precision this project exists to avoid.
 
-Runtime hours come from `UsageProfileConfig.monthly_hours(...)`, which already returns the
-value, its provenance and a sentence explaining it — feed all three into the component.
+Ranges: `Quantity` already carries `min`/`expected`/`max`, and `DimensionEstimate` already has
+`low`/`high`. Wire them through so a profile expressing a span produces a span rather than a
+point, and the engine carries the bounds onto the component.
 
-Tests: one table-driven module per service, each including a case where a pricing-relevant
-property is unresolved and the result must be `UNKNOWN` with an `unknown_input` naming it,
-and a case where the catalog has no rate (`PriceNotFound`) and the result must also be
-`UNKNOWN` rather than zero.
+DynamoDB is worth care: `BillingMode` decides between on-demand request units and provisioned
+capacity units, and an unresolved `BillingMode` must be `UNKNOWN` rather than defaulting,
+because the two models differ by orders of magnitude at the same workload.
 
-Commit message: `feat: estimate core fixed aws infrastructure costs`
+Tests: for each service, one case with the driver configured, one without it (asserting the
+documented default or an explicit unknown), and one where a rate-determining property is
+unresolved.
+
+Commit message: `feat: estimate usage-based aws service costs`
