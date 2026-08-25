@@ -218,7 +218,10 @@ class LoadBalancerEstimator:
             missing=f"{balancer_type} load balancer hourly rate",
         )
 
-        capacity = unknown(
+        return (hourly, self._capacity(), self._data_transfer(resource, context))
+
+    def _capacity(self) -> DimensionEstimate:
+        return unknown(
             self.service,
             "LCU-Hours",
             missing="load_balancer_capacity_units",
@@ -229,4 +232,61 @@ class LoadBalancerEstimator:
             remedy="no usage driver models capacity units yet; treat the hourly charge as a floor",
             unit="Hrs",
         )
-        return (hourly, capacity)
+
+    def _data_transfer(
+        self, resource: NormalizedResource, context: EstimationContext
+    ) -> DimensionEstimate:
+        """Price outbound data transfer, but only from a per-resource figure.
+
+        Attribution is the difficulty. An environment-wide ``outbound_data_gb`` cannot be
+        charged to each of three load balancers without counting it three times, so an
+        environment-level figure is deliberately refused here. Requiring a
+        ``resource_overrides`` entry makes the attribution explicit and the arithmetic
+        honest.
+        """
+        driver = context.driver("outbound_data_gb", resource, resource_scope_only=True)
+        if driver is None:
+            return unknown(
+                self.service,
+                "DataTransfer-Out-GB",
+                missing="outbound_data_gb",
+                reason=(
+                    "outbound volume is not attributed to this load balancer; an "
+                    "environment-wide figure cannot be charged to each egress point "
+                    "without counting it more than once"
+                ),
+                remedy=(
+                    "set outbound_data_gb under resource_overrides for "
+                    f"{resource.key.logical_id}, so the attribution is explicit"
+                ),
+                unit="GB",
+            )
+        return context.priced(
+            service="AWSDataTransfer",
+            dimension="DataTransfer-Out-GB",
+            key=PriceKey(
+                service="AWSDataTransfer",
+                dimension="DataTransfer-Out-GB",
+                region=context.region,
+                attributes={"destination": "internet"},
+            ),
+            quantity=driver.quantity.expected,
+            quantity_low=driver.quantity.minimum,
+            quantity_high=driver.quantity.maximum,
+            estimate_type=EstimateType.DATA_TRANSFER,
+            confidence=Confidence.LOW,
+            confidence_reasons=(
+                "published first-tier outbound rate",
+                f"assumes {driver.quantity.expected} GB/month attributed to this resource",
+                "excludes the monthly free allowance, which this tool never applies silently",
+            ),
+            assumptions=(
+                Assumption(
+                    subject="outbound_data_gb",
+                    value=str(driver.quantity.expected),
+                    provenance=driver.provenance,
+                    detail=driver.detail,
+                    resource=resource.key,
+                ),
+            ),
+        )

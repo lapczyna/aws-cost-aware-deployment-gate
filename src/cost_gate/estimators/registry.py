@@ -25,6 +25,16 @@ from cost_gate.estimators.network import (
     LoadBalancerEstimator,
     NatGatewayEstimator,
 )
+from cost_gate.estimators.serverless import (
+    ApiGatewayEstimator,
+    LambdaFunctionEstimator,
+    RestApiEstimator,
+)
+from cost_gate.estimators.storage import (
+    CloudWatchLogsEstimator,
+    DynamoDbTableEstimator,
+    S3BucketEstimator,
+)
 
 __all__ = [
     "COST_FREE_TYPES",
@@ -156,6 +166,12 @@ def default_registry() -> EstimatorRegistry:
         EbsVolumeEstimator(),
         EksClusterEstimator(),
         RdsInstanceEstimator(),
+        LambdaFunctionEstimator(),
+        ApiGatewayEstimator(),
+        RestApiEstimator(),
+        DynamoDbTableEstimator(),
+        S3BucketEstimator(),
+        CloudWatchLogsEstimator(),
     ):
         registry.register(estimator)
     return registry

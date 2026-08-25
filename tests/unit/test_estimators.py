@@ -365,8 +365,18 @@ class TestUnsupportedResources:
 
 
 class TestRegistry:
-    def test_every_shipped_estimator_is_registered(self):
-        assert len(REGISTRY.supported_types()) == 7
+    def test_every_fixed_cost_estimator_is_registered(self):
+        # Named rather than counted: a count breaks every time coverage grows, which
+        # trains people to update the number without reading what changed.
+        assert set(REGISTRY.supported_types()) >= {
+            "AWS::EC2::NatGateway",
+            "AWS::EC2::EIP",
+            "AWS::ElasticLoadBalancingV2::LoadBalancer",
+            "AWS::EC2::Instance",
+            "AWS::EC2::Volume",
+            "AWS::EKS::Cluster",
+            "AWS::RDS::DBInstance",
+        }
 
     def test_registering_a_type_twice_is_rejected(self):
         registry = EstimatorRegistry()

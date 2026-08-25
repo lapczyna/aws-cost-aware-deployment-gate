@@ -3,7 +3,7 @@
 This document is the handover note. It is updated at the end of every phase so that work can
 resume from a clean state without re-deriving decisions.
 
-**Last updated:** end of Phase 6 (2026-08-25)
+**Last updated:** end of Phase 7 (2026-08-25)
 
 ## Architecture summary
 
@@ -34,11 +34,12 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 3 | CloudFormation parser and normalisation | `32464ff` |
 | 4 | Infrastructure change engine | `9b381ec` |
 | 5 | Pricing provider framework | `25f15be` |
-| 6 | Fixed-cost AWS estimators | *(recorded at commit time)* |
+| 6 | Fixed-cost AWS estimators | `e1129a5` |
+| 7 | Usage-based estimators | *(recorded at commit time)* |
 
 ## Current state of the repository
 
-The pipeline now produces cost estimates end to end for seven resource types. **No policy
+The pipeline prices thirteen resource types, fixed and usage-based. **No policy
 evaluation, budgets or reporting exists yet** — a `CostReport` is produced but nothing
 renders or gates on it. That is Phases 9 and 11.
 
@@ -128,8 +129,16 @@ Estimators (`src/cost_gate/estimators/`):
   gateway is deleted at 8pm. `expected_lifetime_hours` overrides both.
 * `context.priced()` performs the lookup itself and turns a `PriceNotFound` into an
   `UNKNOWN` dimension. An estimator never sees the rate, so it cannot substitute one.
-* `network.py`, `compute.py`, `database.py` — seven estimators. EC2 is deliberately `LOW`
+* `network.py`, `compute.py`, `database.py` — fixed cost. EC2 is deliberately `LOW`
   confidence: the operating system comes from the AMI, which no template describes.
+* `serverless.py`, `storage.py` — usage-based. The rule: **service defaults are
+  defensible** (Lambda's 128 MB, DynamoDB's provisioned mode — AWS defines them);
+  **usage volumes never are**, so a missing driver becomes an explicit unknown.
+* `context.driver(..., resource_scope_only=True)` refuses an environment-wide figure for
+  drivers that cannot be attributed to one resource without double counting — outbound
+  data transfer across several load balancers being the case that motivated it.
+* Ranges flow end to end: `Quantity(min/expected/max)` -> `quantity_low/high` ->
+  `DimensionEstimate.low/high` -> `CostComponent.low/high`.
 * `registry.py` — coverage plus `COST_FREE_TYPES` (subnets, IAM roles, target groups),
   which lets a report say "considered, costs nothing" rather than "unknown".
 * `engine.py` — prices **every resource in both graphs**, not only changed ones, so the
@@ -210,6 +219,9 @@ budget/policy configuration models, `infrastructure/`.
     loader correctly refuses. Test helpers compose resource *bodies* under one header.
 20. mypy does not narrow a union through a separate boolean flag; check
     `if x is None or y is None:` directly.
+21. Tests that assert an exact count of registered estimators break every time coverage
+    grows, which trains people to bump the number without reading what changed. Assert
+    the expected types are present instead.
 
 ## Verification commands
 
@@ -220,18 +232,21 @@ python -m cost_gate.cli.main validate-config --config examples/config/cost-gate.
 python -m cost_gate.cli.main schema export --out schemas
 ```
 
-Last full run (Phase 6): Ruff clean, mypy strict clean over 50 files, import-linter 2 contracts
-kept, **726 tests passed**, pip-audit reports no known vulnerabilities, safety checker green.
+Last full run (Phase 7): Ruff clean, mypy strict clean over 52 files, import-linter 2 contracts
+kept, **764 tests passed**, pip-audit reports no known vulnerabilities, safety checker green.
 A clean-install check confirms the wheel ships both the curated resource metadata and the
 pricing catalog, and that `cost-gate pricing verify` passes against the packaged copy.
 
 ## Current limitations
 
 * No cost estimation exists. The CLI validates configuration and exports schemas only.
-* Seven resource types are priced. Usage-based services (Lambda, API Gateway, DynamoDB, S3,
-  CloudWatch Logs, data transfer) arrive in Phase 7; until then they are visible unknowns.
-* Load-balancer capacity units and RDS backup storage are always unknown: no usage driver
-  models them yet.
+* Thirteen resource types are priced. Everything else is a visible unknown.
+* Load-balancer capacity units and RDS backup storage remain always-unknown: no usage
+  driver models them, and inventing one would be worse than saying so.
+* Tiered pricing is charged at the first tier throughout, so high volumes are overstated.
+  Stated in every affected component's confidence reasons and in the manifest.
+* Nothing renders or gates on the report yet. `estimate_graphs` returns a `CostReport`
+  that no CLI command currently exposes; that is Phases 9 and 11.
 * `AWS::RDS::DBCluster` is deferred; it produces a visible unknown.
 * **The bundled rates are approximate and unverified.** They are adequate for demonstrating
   the mechanism and for deterministic tests, and for nothing else. Phase 8 replaces them.
@@ -258,28 +273,37 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
 
 ## Exact recommended next action
 
-**Phase 7 — usage-based estimators.** Add to `src/cost_gate/estimators/`:
-`lambda_.py`, `api_gateway.py`, `dynamodb.py`, `s3.py`, `cloudwatch_logs.py`, and data
-transfer. Every rate they need is already in the catalog.
+**Phase 8 is deliberately skippable; Phase 9 is the one that makes the tool a gate.**
 
-The judgement each one has to make is the same, and it is the interesting part:
+Phase 8 (the AWS Price List adapter) needs no AWS credentials to build — it is verified
+with botocore's `Stubber` — but it produces no user-visible capability on its own, and
+the catalog it would refresh is already usable. Phase 9 turns an estimate into a
+decision, which is the point of the project. Either order works; Phase 9 is the higher
+value.
 
-* **A defensible built-in default exists** — apply it, drop confidence to `LOW`, record the
-  assumption. Lambda average duration given a configured memory size is the clearest case.
-* **No defensible default exists** — emit an `UNKNOWN` naming the missing driver. CloudWatch
-  Logs ingestion is the canonical example: volume spans four orders of magnitude between
-  applications, and guessing it is exactly the false precision this project exists to avoid.
+**Phase 9 — budget and policy engine.** In `src/cost_gate/config/` add the budget and
+policy models (deferred from Phase 2 so they arrive with their engine), then
+`src/cost_gate/budgets/` and `src/cost_gate/policies/`.
 
-Ranges: `Quantity` already carries `min`/`expected`/`max`, and `DimensionEstimate` already has
-`low`/`high`. Wire them through so a profile expressing a span produces a span rather than a
-point, and the engine carries the bounds onto the component.
+* Budget scope matching on `application`/`environment`/`team`/`cost_centre`; most specific
+  wins; an exact tie between two equally-specific budgets is a **configuration error**, not
+  a tie-break, or the outcome would depend on file order.
+* `BudgetEvaluation` already exists in the domain and keeps `estimated_infrastructure_*`,
+  `baseline_actual_monthly` and `forecast_monthly` in separate fields. Keep them separate:
+  conflating an estimate with an actual is how cost tooling loses credibility. `basis`
+  records which figure utilisation was computed against.
+* The policy predicate grammar is a **closed, typed discriminated union** with
+  `extra="forbid"` (ADR 0006). No `eval`, no expression language. A typo such as
+  `monthly_cost_delta_greater_then` must fail at load time with a path-precise error: a
+  policy that silently never fires is worse than no policy, because it provides false
+  assurance.
+* Decision precedence is `combine_results`, which already exists and is already
+  property-tested for order-independence and non-downgrade. The engine only has to feed it.
+* Every `PolicyEvaluation` retains its `evaluated_inputs` even when it did not match —
+  "why did this rule not fire?" is the question asked after an incident.
 
-DynamoDB is worth care: `BillingMode` decides between on-demand request units and provisioned
-capacity units, and an unresolved `BillingMode` must be `UNKNOWN` rather than defaulting,
-because the two models differ by orders of magnitude at the same workload.
+Tests: order-independence and no-downgrade over generated policy lists; a matched
+`REQUIRE_APPROVAL` without an `approver_group` rejected; two equally-specific budgets
+rejected; and the exit-code mapping end to end.
 
-Tests: for each service, one case with the driver configured, one without it (asserting the
-documented default or an explicit unknown), and one where a rate-determining property is
-unresolved.
-
-Commit message: `feat: estimate usage-based aws service costs`
+Commit message: `feat: add explainable budget and policy gates`

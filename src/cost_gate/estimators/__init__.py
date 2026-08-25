@@ -36,10 +36,23 @@ from cost_gate.estimators.registry import (
     UnsupportedResourceEstimator,
     default_registry,
 )
+from cost_gate.estimators.serverless import (
+    ApiGatewayEstimator,
+    LambdaFunctionEstimator,
+    RestApiEstimator,
+)
+from cost_gate.estimators.storage import (
+    CloudWatchLogsEstimator,
+    DynamoDbTableEstimator,
+    S3BucketEstimator,
+)
 
 __all__ = [
     "COST_FREE_TYPES",
+    "ApiGatewayEstimator",
+    "CloudWatchLogsEstimator",
     "DimensionEstimate",
+    "DynamoDbTableEstimator",
     "EbsVolumeEstimator",
     "Ec2InstanceEstimator",
     "EksClusterEstimator",
@@ -47,10 +60,13 @@ __all__ = [
     "EstimationContext",
     "Estimator",
     "EstimatorRegistry",
+    "LambdaFunctionEstimator",
     "LoadBalancerEstimator",
     "NatGatewayEstimator",
     "RdsInstanceEstimator",
+    "RestApiEstimator",
     "RuntimeBasis",
+    "S3BucketEstimator",
     "UnsupportedResourceEstimator",
     "default_registry",
     "estimate_graphs",

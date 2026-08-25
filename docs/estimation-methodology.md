@@ -138,16 +138,39 @@ resource_overrides:
     allocated_memory_mb: 1024
 ```
 
-Where a driver is absent, the estimator chooses between two behaviours, and the choice is a
-property of the driver, not of the moment:
+Where an input is absent, the estimator chooses between two behaviours, and the choice
+follows one rule:
 
-* **A documented built-in default exists** (for example, Lambda average duration when memory
-  is known): apply it, drop confidence to `LOW`, and record the assumption.
-* **No defensible default exists** (for example, CloudWatch Logs ingestion volume, which spans
-  four orders of magnitude between applications): emit an `UNKNOWN` component with an
-  `unknown_input` naming the missing driver.
+* **Service defaults are defensible**, because AWS defines them rather than this tool
+  guessing. Lambda's memory size defaults to 128 MB, DynamoDB's billing mode to
+  provisioned, an RDS storage type to gp2, an S3 object's class to standard. Applying one
+  is reporting a fact, and it is recorded as an assumption with `BUILTIN_DEFAULT`
+  provenance so a reader can see it was applied.
 
-Guessing log volume is exactly the kind of false precision this project exists to avoid.
+* **Usage volumes never are.** "How many invocations per month", "how many gigabytes of
+  logs", "how much data leaves this load balancer" have no defensible answer, and
+  inventing one produces exactly the confident-looking fiction this project exists to
+  avoid. These become an `UNKNOWN` component with an `unknown_input` naming the missing
+  driver and a remedy saying which profile key would supply it.
+
+Two consequences worth noticing:
+
+* A dimension can be priced while its neighbour is unknown. A Lambda function with a
+  configured invocation count but no configured duration has a priced request charge and
+  an unknown duration charge. They fail independently, which is the point of splitting
+  them.
+* Some quantities are not merely unknown but **unbounded**. A CloudWatch log group with no
+  `RetentionInDays` keeps everything forever, so there is no steady-state monthly volume at
+  all, however much is ingested. The report says that rather than offering a number, because
+  "this has no bound" is the actionable finding.
+
+### Attribution: whose gigabytes are these?
+
+An environment-wide `outbound_data_gb` cannot be charged to each of three load balancers
+without counting it three times. Drivers whose value belongs to an environment rather than
+to one resource are therefore refused at environment scope and require a
+`resource_overrides` entry naming the resource. The estimate is then explicitly attributed
+rather than silently multiplied.
 
 ## 7. Ranges instead of false precision
 

@@ -13,7 +13,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 4 | Infrastructure change engine | done | see git log |
 | 5 | Pricing provider framework | done | see git log |
 | 6 | Fixed-cost AWS estimators | done | see git log |
-| 7 | Usage-based estimators | planned | |
+| 7 | Usage-based estimators | done | see git log |
 | 8 | AWS Price List adapter (optional provider) | planned | |
 | 9 | Budget and policy engine | planned | |
 | 10 | FinOps recommendation engine | planned | |
@@ -64,13 +64,13 @@ Phases 0–14 constitute the MVP. Phases 15–18 are secondary and may be reorde
 
 | Resource type / dimension | Status |
 |---|---|
-| `AWS::Lambda::Function` | planned |
-| `AWS::ApiGatewayV2::Api`, `AWS::ApiGateway::RestApi` | planned |
-| `AWS::DynamoDB::Table` (on-demand and provisioned) | planned |
-| `AWS::S3::Bucket` (storage and requests) | planned |
-| `AWS::Logs::LogGroup` (ingestion and retained storage) | planned |
-| NAT Gateway data processing | planned |
-| Outbound data transfer (conservative) | planned |
+| `AWS::Lambda::Function` | done |
+| `AWS::ApiGatewayV2::Api`, `AWS::ApiGateway::RestApi` | done |
+| `AWS::DynamoDB::Table` (on-demand and provisioned) | done |
+| `AWS::S3::Bucket` (storage and requests) | done |
+| `AWS::Logs::LogGroup` (ingestion and retained storage) | done |
+| NAT Gateway data processing | done |
+| Outbound data transfer (conservative) | done |
 
 Everything not listed produces a visible `UNKNOWN` component. `cost-gate
 list-supported-resources` reads the live registry, so this table can be verified against the

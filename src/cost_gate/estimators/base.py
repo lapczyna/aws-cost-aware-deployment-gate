@@ -42,7 +42,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Protocol
 
-from cost_gate.config.usage import UsageProfileConfig
+from cost_gate.config.usage import ResolvedDriver, UsageProfileConfig
 from cost_gate.domain.cost import Assumption, PricingSourceRef, UnknownInput
 from cost_gate.domain.enums import Confidence, EstimateType, PurchaseOption, ValueProvenance
 from cost_gate.domain.money import Money
@@ -208,6 +208,8 @@ class EstimationContext:
         confidence_reasons: tuple[str, ...],
         assumptions: tuple[Assumption, ...] = (),
         missing: str = "",
+        quantity_low: Decimal | None = None,
+        quantity_high: Decimal | None = None,
     ) -> DimensionEstimate:
         """Look up a rate and apply it, or return an explained unknown.
 
@@ -241,9 +243,68 @@ class EstimationContext:
             unit=result.unit,
             quantity=quantity,
             monthly=result.cost_for(quantity),
+            low=result.cost_for(quantity_low) if quantity_low is not None else None,
+            high=result.cost_for(quantity_high) if quantity_high is not None else None,
             confidence_reasons=confidence_reasons,
             assumptions=assumptions,
             pricing_source=source,
+        )
+
+    def driver(
+        self,
+        name: str,
+        resource: NormalizedResource,
+        *,
+        resource_scope_only: bool = False,
+    ) -> ResolvedDriver | None:
+        """Resolve a usage driver for one resource, or ``None`` if none is configured.
+
+        ``resource_scope_only`` refuses an environment-wide figure. Some drivers cannot
+        be attributed to one resource without double counting — an environment's total
+        outbound gigabytes cannot sensibly be charged to each of three load balancers —
+        so those require a ``resource_overrides`` entry naming the resource.
+        """
+        resolved = self.usage.resolve(
+            name,
+            environment=resource.context.environment or self.environment,
+            logical_id=resource.key.logical_id,
+        )
+        if resolved is None:
+            return None
+        if (
+            resource_scope_only
+            and resolved.provenance is not ValueProvenance.CONFIG_RESOURCE_OVERRIDE
+        ):
+            return None
+        return resolved
+
+    def volume_unknown(
+        self,
+        service: str,
+        dimension: str,
+        *,
+        driver: str,
+        resource: NormalizedResource,
+        why: str,
+        unit: str = "",
+    ) -> DimensionEstimate:
+        """Report a usage volume that nobody has told us.
+
+        Usage volumes never get a built-in default. A *service* default such as Lambda's
+        128 MB is defensible because AWS itself defines it; "how many invocations" has
+        no such answer, and inventing one is the false precision this project exists to
+        avoid.
+        """
+        return unknown(
+            service,
+            dimension,
+            missing=driver,
+            reason=why,
+            remedy=(
+                f"set {driver} in the usage profile, for the environment or as an "
+                f"override for {resource.key.logical_id}"
+            ),
+            unit=unit,
         )
 
     def free(
