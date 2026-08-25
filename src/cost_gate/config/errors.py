@@ -1,28 +1,32 @@
-"""Configuration errors that point at the problem.
+"""Errors that point at the problem.
 
 A validation message that says "1 validation error for UsageProfileConfig" and then
 prints a Python type name is a message the user cannot act on. Every error raised here
 names the file, the path within it, the offending value, and — where the cause is a
 closed vocabulary such as a driver name — the permitted alternatives.
+
+:class:`DocumentError` is shared by configuration loading and template parsing, so both
+report problems the same way.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from pathlib import Path
+from typing import Self
 
 from pydantic import ValidationError
 
-__all__ = ["ConfigError", "ConfigIssue", "from_validation_error"]
+__all__ = ["ConfigError", "DocumentError", "DocumentIssue", "from_validation_error"]
 
 _MAX_VALUE_LENGTH = 120
 
 
-class ConfigIssue:
-    """One problem with one part of a configuration file."""
+class DocumentIssue:
+    """One problem with one part of one document."""
 
     def __init__(self, path: str, message: str, value: object = None) -> None:
-        """Record a problem at a JSON-Pointer-style path within a file."""
+        """Record a problem at a JSON-Pointer-style path within a document."""
         self.path = path or "/"
         self.message = message
         self.value = value
@@ -38,31 +42,43 @@ class ConfigIssue:
         return rendered
 
 
-class ConfigError(Exception):
-    """A configuration file could not be loaded or was invalid.
+class DocumentError(Exception):
+    """A document could not be loaded or was invalid.
 
-    Carries every issue found rather than only the first, so that a user fixing a
-    configuration file does not have to rediscover the next problem on each run.
+    Carries every issue found rather than only the first, so that a user fixing a file
+    does not have to rediscover the next problem on each run.
     """
 
-    def __init__(self, source: Path | str, issues: Sequence[ConfigIssue]) -> None:
-        """Build an error for one file."""
+    label = "document"
+
+    def __init__(self, source: Path | str, issues: Sequence[DocumentIssue]) -> None:
+        """Build an error for one document."""
         self.source = str(source)
         self.issues = tuple(issues)
         super().__init__(self.render())
 
     def render(self) -> str:
-        """Render every issue, one per line, prefixed by the file."""
-        header = f"invalid configuration in {self.source}"
+        """Render every issue, one per line, prefixed by the document."""
+        header = f"invalid {self.label} in {self.source}"
         if not self.issues:
             return header
         body = "\n".join(f"  {issue}" for issue in self.issues)
         return f"{header}:\n{body}"
 
     @classmethod
-    def single(cls, source: Path | str, message: str, path: str = "") -> ConfigError:
+    def single(cls, source: Path | str, message: str, path: str = "") -> Self:
         """Build an error with one issue."""
-        return cls(source, [ConfigIssue(path, message)])
+        return cls(source, [DocumentIssue(path, message)])
+
+
+class ConfigError(DocumentError):
+    """A configuration file could not be loaded or was invalid."""
+
+    label = "configuration"
+
+
+# Retained for readability at call sites that build issues directly.
+ConfigIssue = DocumentIssue
 
 
 def _pointer(location: Iterable[object]) -> str:
@@ -81,9 +97,13 @@ def _pointer(location: Iterable[object]) -> str:
     return "/" + "/".join(tokens) if tokens else "/"
 
 
-def from_validation_error(source: Path | str, error: ValidationError) -> ConfigError:
+def from_validation_error(
+    source: Path | str,
+    error: ValidationError,
+    error_type: type[DocumentError] = ConfigError,
+) -> DocumentError:
     """Convert a pydantic :class:`ValidationError` into a user-facing error."""
-    issues: list[ConfigIssue] = []
+    issues: list[DocumentIssue] = []
     for detail in error.errors():
         message = detail.get("msg", "invalid value")
         if detail.get("type") == "extra_forbidden":
@@ -92,10 +112,10 @@ def from_validation_error(source: Path | str, error: ValidationError) -> ConfigE
                 "rejected here rather than silently ignored"
             )
         issues.append(
-            ConfigIssue(
+            DocumentIssue(
                 path=_pointer(detail.get("loc", ())),
                 message=message,
                 value=detail.get("input"),
             )
         )
-    return ConfigError(source, issues)
+    return error_type(source, issues)

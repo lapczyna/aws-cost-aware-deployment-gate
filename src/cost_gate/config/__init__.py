@@ -11,7 +11,7 @@ it.
 
 from __future__ import annotations
 
-from cost_gate.config.errors import ConfigError, ConfigIssue
+from cost_gate.config.errors import ConfigError, ConfigIssue, DocumentError, DocumentIssue
 from cost_gate.config.loader import load_model, load_yaml_file, resolve_within
 from cost_gate.config.root import LoadedConfig, PricingConfig, RootConfig, load_config
 from cost_gate.config.schema import SCHEMA_VERSION, exported_schemas, write_schemas
@@ -29,6 +29,8 @@ __all__ = [
     "SCHEMA_VERSION",
     "ConfigError",
     "ConfigIssue",
+    "DocumentError",
+    "DocumentIssue",
     "EnvironmentUsage",
     "LoadedConfig",
     "PricingConfig",

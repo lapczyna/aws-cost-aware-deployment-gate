@@ -30,6 +30,7 @@ __all__ = [
     "Severity",
     "ValueProvenance",
     "most_specific_provenance",
+    "weakest_provenance",
 ]
 
 
@@ -292,6 +293,23 @@ _RANKS: Final[dict[str, tuple[str, ...]]] = {
 }
 
 _PROVENANCE_ORDER: Final = tuple(ValueProvenance)
+
+
+def weakest_provenance(candidates: Iterable[ValueProvenance]) -> ValueProvenance:
+    """Return the least specific provenance among the candidates.
+
+    Used when a value is *composed* from several others — a ``Fn::Sub`` substitution, a
+    ``Fn::FindInMap`` lookup keyed on a parameter. The result is only as well-evidenced
+    as its weakest input: an instance class looked up in a mapping keyed on a parameter
+    default is an assumption, however literal the mapping itself is.
+
+    This is the mirror of :func:`most_specific_provenance`, which picks the winner when
+    several *alternative* sources could supply the same value.
+    """
+    ordered = sorted(candidates, key=lambda provenance: provenance.precedence)
+    if not ordered:
+        return ValueProvenance.TEMPLATE
+    return ordered[-1]
 
 
 def most_specific_provenance(candidates: Iterable[ValueProvenance]) -> ValueProvenance:

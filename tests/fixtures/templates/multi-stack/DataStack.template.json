@@ -1,0 +1,13 @@
+{
+  "Resources": {
+    "Database9F8E7D6C": {
+      "Type": "AWS::RDS::DBInstance",
+      "Metadata": { "aws:cdk:path": "App/Data/Database/Resource" },
+      "Properties": {
+        "DBInstanceClass": "db.t3.medium",
+        "AllocatedStorage": 100,
+        "Endpoint": { "Fn::ImportValue": "NetworkStack:SubnetId" }
+      }
+    }
+  }
+}

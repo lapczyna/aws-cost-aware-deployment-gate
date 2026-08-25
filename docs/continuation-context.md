@@ -3,7 +3,7 @@
 This document is the handover note. It is updated at the end of every phase so that work can
 resume from a clean state without re-deriving decisions.
 
-**Last updated:** end of Phase 2 (2026-08-24)
+**Last updated:** end of Phase 3 (2026-08-25)
 
 ## Architecture summary
 
@@ -30,11 +30,12 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 0 | Architecture documentation, ADRs, repository scaffolding | `64c862c` |
 | 1 | Project foundation and quality gates | `bad1629` |
 | 1a | Workflow safety checker (fix to Phase 1 CI) | `2a5f6af` |
-| 2 | Domain model and configuration schemas | *(recorded at commit time)* |
+| 2 | Domain model and configuration schemas | `0409a6b` |
+| 3 | CloudFormation parser and normalisation | *(recorded at commit time)* |
 
 ## Current state of the repository
 
-Domain and configuration layers are complete and tested. **No parsing, estimation, policy
+Domain, configuration and parsing are complete and tested. **No diffing, estimation, policy
 evaluation or reporting exists yet** — the CLI can validate configuration and export schemas.
 
 Domain (`src/cost_gate/domain/`):
@@ -59,10 +60,29 @@ Domain (`src/cost_gate/domain/`):
 Config (`src/cost_gate/config/`): `errors.py` (path-precise issues), `loader.py` (bounded
 safe YAML), `usage.py` (closed driver vocabulary and precedence), `root.py`, `schema.py`.
 
-Also: `schemas/` (4 generated files), `examples/config/` (annotated sample config),
-`cost-gate validate-config` and `cost-gate schema export`.
+Parsers (`src/cost_gate/parsers/`):
 
-Still absent: `parsers/`, `diff/`, `pricing/`, `estimators/`, `policies/`, `budgets/`,
+* `cfn_loader.py` — bounded `SafeLoader` understanding CloudFormation shorthand tags.
+  **JSON goes through the same path** (JSON is a subset of YAML), which is why a template and
+  its JSON form are *guaranteed* to normalise identically rather than merely intended to.
+  Unknown tags are rejected, not dropped. `resource_line_numbers` composes (rather than
+  constructs) to recover source marks, and returns nothing rather than failing.
+* `intrinsics.py` — the conservative resolver. Four outcomes: `Known` (with provenance),
+  `Reference`, `Unknown`, `Omitted` (only `AWS::NoValue`). Three-valued condition logic.
+  `Fn::If` on an undecidable condition keeps both branches in `scenario_values`.
+  `Fn::ImportValue` is always unknown. Composed values (`Sub`, `Join`, `FindInMap`) take the
+  **weakest** provenance of their inputs.
+* `normalize.py` — flattening to JSON Pointer paths, tag extraction (resolved tags only),
+  attribution, `aws:cdk:path`, source locations, multi-stack directory loading.
+
+`yaml_bounds.py` (top level, outside the layer contract) holds the loader bounds shared by
+config and template parsing, including **duplicate-key rejection**.
+
+Also: `schemas/` (4 generated files), `examples/config/` (annotated sample config),
+`tests/fixtures/templates/` (intrinsics fixture in YAML with a generated JSON sibling, plus a
+CDK-style multi-stack directory), `cost-gate validate-config` and `cost-gate schema export`.
+
+Still absent: `diff/`, `pricing/`, `estimators/`, `policies/`, `budgets/`,
 `recommendations/`, `reporting/`, `adapters/`, `observability/`, the pricing catalog,
 budget/policy configuration models, `infrastructure/`.
 
@@ -99,6 +119,14 @@ budget/policy configuration models, `infrastructure/`.
    case" eventually admits an unsafe one.
 10. Ruff `S105` and Bandit `B105` both flag `PASS = "PASS"` as a hardcoded credential; both
     suppressions are needed on that line.
+11. `Resolved` gained a `provenance` field during Phase 3. Composed intrinsics must propagate
+    the **weakest** provenance (`weakest_provenance`), or a `db.r6g.xlarge` looked up through a
+    mapping keyed on a parameter *default* is presented as a stated fact rather than as the
+    assumption it is. Caught by a smoke test, not by a unit test.
+12. A dispatch table typed `dict[str, Any]` makes mypy report "Returning Any" at the call site.
+    Type it as `dict[str, IntrinsicHandler]`; handlers can reference functions defined further
+    down the module because names resolve at call time, so no placeholder-and-patch loop is
+    needed.
 
 ## Verification commands
 
@@ -109,12 +137,15 @@ python -m cost_gate.cli.main validate-config --config examples/config/cost-gate.
 python -m cost_gate.cli.main schema export --out schemas
 ```
 
-Last full run (Phase 2): Ruff clean, mypy strict clean over 31 files, import-linter 2 contracts
-kept, **298 tests passed**, pip-audit reports no known vulnerabilities, safety checker green.
+Last full run (Phase 3): Ruff clean, mypy strict clean over 36 files, import-linter 2 contracts
+kept, **453 tests passed**, pip-audit reports no known vulnerabilities, safety checker green.
 
 ## Current limitations
 
 * No cost estimation exists. The CLI validates configuration and exports schemas only.
+* Nothing yet *compares* two graphs; that is Phase 4.
+* `Fn::ForEach`, `Fn::Length` and `Fn::ToJsonString` are recognised but deliberately
+  unresolved. Cross-stack `Fn::ImportValue` is unresolvable by design.
 * The pricing catalog is still an empty placeholder directory.
 * Budget and policy *configuration* models arrive in Phase 9, alongside their engine. The
   domain *result* types (`BudgetEvaluation`, `PolicyEvaluation`) already exist.
@@ -132,23 +163,31 @@ kept, **298 tests passed**, pip-audit reports no known vulnerabilities, safety c
 
 ## Exact recommended next action
 
-**Phase 3 — CloudFormation parser and normalisation.** Implement `src/cost_gate/parsers/`:
+**Phase 4 — infrastructure change engine.** Implement `src/cost_gate/diff/`:
 
-* `cfn_loader.py` — a `yaml.SafeLoader` subclass registering CloudFormation shorthand tags
-  (`!Ref`, `!Sub`, `!GetAtt`, `!If`, `!FindInMap`, `!Join`, `!Select`, `!Split`, `!Base64`,
-  `!Cidr`, `!GetAZs`, `!ImportValue`, `!Equals`, `!And`, `!Or`, `!Not`) into their long forms.
-  Reuse the bounded loader pattern from `config/loader.py` (size, node, depth, alias caps) and
-  drive the loader directly rather than through the banned module-level helper.
-* `intrinsics.py` — the conservative resolver producing `Resolved | ResourceRef | Unresolved`.
-  `Ref` to a parameter resolves from CLI value, then template `Default`, else
-  `IntrinsicKind.MISSING_PARAMETER`. `Fn::If` with an unresolved condition returns `Unresolved`
-  carrying both branches in `scenario_values`. `Fn::ImportValue` is always unresolved.
-* `normalize.py` — template to `ResourceGraph`: flatten properties to JSON Pointer paths,
-  extract tags (resolved tags only), read `Metadata."aws:cdk:path"` into `construct_path`,
-  record `SourceLocation`, resolve `ResourceContext` from tags then root config.
-* Multi-stack loading from a directory of templates.
+* `metadata.py` + `resource-metadata.yaml` — curated per supported resource type, declaring
+  for each property path `cost_relevant: bool` and
+  `replacement: ALWAYS | CONDITIONAL | NEVER`. Unsupported types get `UNKNOWN` replacement
+  behaviour, never an optimistic `NEVER`.
+* `matching.py` — the identity ladder from ADR 0004, applied deterministically and one-to-one:
+  1. same stack + same `construct_path` (`CONSTRUCT_PATH`, `HIGH`)
+  2. same stack + same logical ID (`LOGICAL_ID`, `HIGH`)
+  3. same type + logical IDs equal after stripping a trailing CDK hash suffix
+     (`HEURISTIC`, `LOW`, always surfaced in the report)
+  4. otherwise a separate `ADD` and `REMOVE` — never a silent pairing
+  Score candidates, sort descending with ties broken by logical ID, assign greedily.
+* `engine.py` — produce the `ChangeSet`: compare flattened property maps to build
+  `PropertyDelta`s, promote `MODIFY` to `REPLACE` when a changed property has
+  `replacement: ALWAYS`, and emit `NO_COST_CHANGE` when only non-cost-relevant paths differ
+  (still listed, with a zero delta, so a reader can see the tool considered it).
 
-Tests: a fixture template per intrinsic kind; JSON and YAML forms producing identical graphs;
-unresolved values never coerced; YAML bomb and traversal refused; `Fn::If` scenario capture.
+Tests: the CDK logical-ID-churn scenario (a resized database must be one `MODIFY`, not an
+`ADD` plus a `REMOVE`); reversal (`diff(a, b)` is the inverse of `diff(b, a)`); shuffled input
+producing an identical `ChangeSet`; heuristic matches labelled `LOW`; unsupported types
+carrying `UNKNOWN` replacement.
 
-Commit message: `feat: normalize cloudformation infrastructure definitions`
+The domain models are already in place (`ResourceChange`, `PropertyDelta`, `ChangeSet`) and
+their validators reject a reversed comparison and refuse to pair unmatched resources, so the
+engine has to satisfy them rather than being trusted to behave.
+
+Commit message: `feat: detect pricing-relevant infrastructure changes`

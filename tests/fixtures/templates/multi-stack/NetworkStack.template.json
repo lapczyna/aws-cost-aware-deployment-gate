@@ -1,0 +1,20 @@
+{
+  "Resources": {
+    "NatGateway7A1B2C3D": {
+      "Type": "AWS::EC2::NatGateway",
+      "Metadata": { "aws:cdk:path": "App/Network/NatGateway/Resource" },
+      "Properties": {
+        "SubnetId": { "Ref": "PublicSubnet" },
+        "Tags": [
+          { "Key": "Environment", "Value": "development" },
+          { "Key": "Application", "Value": "payments" }
+        ]
+      }
+    },
+    "PublicSubnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Metadata": { "aws:cdk:path": "App/Network/PublicSubnet/Resource" },
+      "Properties": { "CidrBlock": "10.0.1.0/24" }
+    }
+  }
+}

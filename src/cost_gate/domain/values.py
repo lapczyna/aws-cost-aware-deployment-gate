@@ -22,7 +22,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from cost_gate.domain.enums import IntrinsicKind
+from cost_gate.domain.enums import IntrinsicKind, ValueProvenance
 
 __all__ = [
     "MAX_EXPRESSION_LENGTH",
@@ -59,6 +59,11 @@ class Resolved(BaseModel):
 
     kind: Literal["RESOLVED"] = "RESOLVED"
     value: ScalarValue
+
+    provenance: ValueProvenance = ValueProvenance.TEMPLATE
+    """How the value was established. A literal in the template is evidence; a value
+    that came from a parameter default is an assumption, and the report says which so
+    that "db.t3.large (from template default)" never reads as a stated fact."""
 
 
 class ResourceRef(BaseModel):

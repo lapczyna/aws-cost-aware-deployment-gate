@@ -4,7 +4,7 @@ A CI/CD gate that estimates the monthly AWS cost impact of an infrastructure cha
 is deployed**, evaluates it against version-controlled budgets and policies, and returns an
 explainable decision on the pull request.
 
-> **Project status: Phase 2 — domain model and configuration schemas in place.**
+> **Project status: Phase 3 — CloudFormation and CDK templates normalise into resource graphs.**
 > This README is a skeleton. Sections marked *(pending)* are completed in later phases, and all
 > sample reports will be generated artifacts rather than hand-written illustrations.
 

@@ -1,0 +1,171 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Conditions": {
+    "FalseAndUndecidable": {
+      "Fn::And": [
+        {
+          "Condition": "IsProduction"
+        },
+        {
+          "Condition": "Undecidable"
+        }
+      ]
+    },
+    "IsNotProduction": {
+      "Fn::Not": [
+        {
+          "Condition": "IsProduction"
+        }
+      ]
+    },
+    "IsProduction": {
+      "Fn::Equals": [
+        {
+          "Ref": "EnvName"
+        },
+        "production"
+      ]
+    },
+    "TrueOrUndecidable": {
+      "Fn::Or": [
+        {
+          "Condition": "IsNotProduction"
+        },
+        {
+          "Condition": "Undecidable"
+        }
+      ]
+    },
+    "Undecidable": {
+      "Fn::Equals": [
+        {
+          "Ref": "InstanceType"
+        },
+        "m5.large"
+      ]
+    }
+  },
+  "Mappings": {
+    "Sizes": {
+      "development": {
+        "Db": "db.t3.micro"
+      },
+      "production": {
+        "Db": "db.r6g.xlarge"
+      }
+    }
+  },
+  "Parameters": {
+    "EnvName": {
+      "Default": "development",
+      "Type": "String"
+    },
+    "InstanceType": {
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "Database": {
+      "Properties": {
+        "AllocatedStorage": 100,
+        "DBInstanceClass": {
+          "Fn::FindInMap": [
+            "Sizes",
+            {
+              "Ref": "EnvName"
+            },
+            "Db"
+          ]
+        },
+        "Dropped": {
+          "Ref": "AWS::NoValue"
+        },
+        "Endpoint": {
+          "Fn::ImportValue": "SharedEndpoint"
+        },
+        "Engine": {
+          "Ref": "InstanceType"
+        },
+        "Escaped": {
+          "Fn::Sub": "literal-${!NotASubstitution}"
+        },
+        "Joined": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "EnvName"
+              },
+              "database"
+            ]
+          ]
+        },
+        "MultiAZ": {
+          "Fn::If": [
+            "IsProduction",
+            true,
+            false
+          ]
+        },
+        "Region": {
+          "Ref": "AWS::Region"
+        },
+        "Selected": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::Split": [
+                ",",
+                "a,b,c"
+              ]
+            }
+          ]
+        },
+        "StorageType": {
+          "Fn::If": [
+            "Undecidable",
+            "io2",
+            "gp3"
+          ]
+        },
+        "SubnetArn": {
+          "Fn::GetAtt": [
+            "Subnet",
+            "Arn"
+          ]
+        },
+        "SubnetTarget": {
+          "Ref": "Subnet"
+        },
+        "Substituted": {
+          "Fn::Sub": "${EnvName}-db-${AWS::Region}"
+        },
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "EnvName"
+            }
+          },
+          {
+            "Key": "Cost-Center",
+            "Value": "CC-1234"
+          },
+          {
+            "Key": "Unresolvable",
+            "Value": {
+              "Ref": "InstanceType"
+            }
+          }
+        ]
+      },
+      "Type": "AWS::RDS::DBInstance"
+    },
+    "Subnet": {
+      "Properties": {
+        "CidrBlock": "10.0.0.0/24"
+      },
+      "Type": "AWS::EC2::Subnet"
+    }
+  }
+}

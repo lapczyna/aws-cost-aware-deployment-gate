@@ -1,0 +1,55 @@
+# Every intrinsic this version resolves, in shorthand form.
+# The JSON sibling of this file must normalise to an identical graph.
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+  EnvName:
+    Type: String
+    Default: development
+  InstanceType:
+    Type: String
+
+Conditions:
+  IsProduction: !Equals [!Ref EnvName, production]
+  IsNotProduction: !Not [!Condition IsProduction]
+  Undecidable: !Equals [!Ref InstanceType, m5.large]
+  FalseAndUndecidable: !And [!Condition IsProduction, !Condition Undecidable]
+  TrueOrUndecidable: !Or [!Condition IsNotProduction, !Condition Undecidable]
+
+Mappings:
+  Sizes:
+    development:
+      Db: db.t3.micro
+    production:
+      Db: db.r6g.xlarge
+
+Resources:
+  Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: !FindInMap [Sizes, !Ref EnvName, Db]
+      AllocatedStorage: 100
+      Engine: !Ref InstanceType
+      MultiAZ: !If [IsProduction, true, false]
+      StorageType: !If [Undecidable, io2, gp3]
+      Region: !Ref AWS::Region
+      Endpoint: !ImportValue SharedEndpoint
+      SubnetTarget: !Ref Subnet
+      SubnetArn: !GetAtt Subnet.Arn
+      Joined: !Join ["-", [!Ref EnvName, database]]
+      Substituted: !Sub "${EnvName}-db-${AWS::Region}"
+      Escaped: !Sub "literal-${!NotASubstitution}"
+      Selected: !Select [1, !Split [",", "a,b,c"]]
+      Dropped: !Ref AWS::NoValue
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvName
+        - Key: Cost-Center
+          Value: CC-1234
+        - Key: Unresolvable
+          Value: !Ref InstanceType
