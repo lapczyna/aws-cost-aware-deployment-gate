@@ -29,6 +29,16 @@ GOLDEN = ROOT / "tests" / "golden"
 EXAMPLES = ROOT / "examples" / "cloudformation"
 
 
+@pytest.fixture(autouse=True)
+def _at_repository_root(monkeypatch):
+    """Run from the repository root.
+
+    Source paths are recorded relative to the working directory, so a run started
+    somewhere else would legitimately produce different bytes.
+    """
+    monkeypatch.chdir(ROOT)
+
+
 def build_artifact():
     """The worked example, with time and run IDs pinned so the output is stable."""
     return run_analysis(
@@ -79,3 +89,19 @@ class TestTheWorkedExample:
         assert artifact.cost.totals.unknown_component_count > 0
         assert artifact.decision.policy_evaluations
         assert artifact.decision.budget_evaluations
+
+
+class TestNoAbsolutePathsEscape:
+    def test_the_artifact_records_relative_paths_only(self):
+        # An absolute path differs between a laptop and a CI runner, which alone would
+        # make byte-comparison impossible. It also publishes a developer's directory
+        # layout into a pull-request comment that anyone can read.
+        payload = render_json(build_artifact())
+        assert "/home/" not in payload
+        assert ":\\\\" not in payload
+        assert str(ROOT).replace("\\", "/") not in payload.replace("\\\\", "/")
+
+    def test_paths_use_forward_slashes(self):
+        # Otherwise Windows and Linux disagree about a file they both read correctly.
+        payload = render_json(build_artifact())
+        assert "examples/cloudformation/proposed.yaml" in payload

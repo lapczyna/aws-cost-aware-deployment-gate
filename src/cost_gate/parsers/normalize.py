@@ -55,6 +55,7 @@ __all__ = [
     "DEFAULT_SINGLE_STACK",
     "MAX_PROPERTIES_PER_RESOURCE",
     "MAX_STACK_FILES",
+    "display_path",
     "load_graph",
     "normalize_template",
 ]
@@ -283,6 +284,25 @@ def _stack_name(path: Path) -> str:
     return path.stem
 
 
+def display_path(path: Path) -> str:
+    """Render a template path for a report: relative, with forward slashes.
+
+    Absolute paths must not reach an artifact. They differ between a developer's
+    machine and a CI runner, which makes any byte-comparison of a report impossible,
+    and they leak a local directory layout into a pull-request comment that anyone
+    can read. ``examples/cloudformation/proposed.yaml`` is also simply the more useful
+    thing to show a reviewer.
+
+    Falls back to the file name when the template lies outside the working directory,
+    since a ``../../..`` chain would leak the same structure it is meant to hide.
+    """
+    try:
+        relative = path.resolve().relative_to(Path.cwd().resolve())
+    except ValueError:
+        return path.name
+    return relative.as_posix()
+
+
 DEFAULT_SINGLE_STACK = "stack"
 """Stack name used when a lone template file is loaded without one being supplied.
 
@@ -344,7 +364,7 @@ def load_graph(
         loaded, unknown_parameters = normalize_template(
             document,
             stack=stack,
-            source_file=str(path),
+            source_file=display_path(path),
             region=region,
             supplied_parameters=supplied_parameters,
             default_context=default_context,

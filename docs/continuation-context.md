@@ -284,7 +284,13 @@ the GitHub workflows and the demo scenarios.
     honours it; an entity is unambiguous everywhere. `&` must be converted first.
 27. A `CostComponent` does not carry its resource type — the estimation engine derives
     `UnknownSummary.resource_types` from the graphs it priced.
-28. `git checkout -- <path>` silently does nothing for an **untracked** file. When
+28. **Never put an absolute path in an artifact.** `SourceLocation.file` recorded
+    `str(path)`, which differs between a laptop and a CI runner (so no report can be
+    byte-compared) and publishes a developer's directory layout into a pull-request
+    comment. `parsers.normalize.display_path` makes it relative with forward slashes.
+    Caught by CI, not locally: the golden file was generated on the machine whose
+    paths it embedded, which is the failure mode golden files are prone to.
+29. `git checkout -- <path>` silently does nothing for an **untracked** file. When
     probing whether a test really fails, revert the probe explicitly and re-check.
 
 ## Verification commands
