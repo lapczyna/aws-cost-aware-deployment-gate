@@ -1,0 +1,987 @@
+{
+  "schema_version": "1",
+  "tool_version": "0.1.0",
+  "generated_at": "2026-01-01T12:00:00Z",
+  "run_id": "fixedrun0001",
+  "region": "us-east-1",
+  "currency": "USD",
+  "monthly_hours": 730,
+  "environment": "development",
+  "application": "payments",
+  "pricing": {
+    "provider": "fixture-catalog",
+    "catalog_version": "0.1.0-illustrative",
+    "region": "us-east-1",
+    "captured_at": "2026-08-25T00:00:00Z",
+    "authoritative": false,
+    "verified": false,
+    "disclaimer": "pricing: fixture-catalog · v0.1.0-illustrative · captured 2026-08-25 · illustrative list prices, not authoritative · not verified against an authoritative source",
+    "limitations": [
+      "Rates are approximate and unverified. They are suitable for demonstrating the tool and for deterministic tests, and for nothing else.",
+      "On-demand list prices only. Excludes Savings Plans, Reserved Instances, enterprise discount programmes, credits, taxes and support charges, so the effective price an account actually pays is normally lower.",
+      "Single region. A rate requested for any region other than us-east-1 resolves to PriceNotFound and is reported as UNKNOWN rather than approximated.",
+      "Free-tier allowances are never applied.",
+      "Coverage is limited to the resource types listed below; anything else produces a visible UNKNOWN component.",
+      "Tiered pricing is represented at a single rate. Where real pricing steps down with volume, these figures correspond to the first tier and therefore overstate cost at high volume."
+    ]
+  },
+  "changes": {
+    "baseline_resource_count": 5,
+    "proposed_resource_count": 9,
+    "unchanged_count": 4,
+    "added": 4,
+    "removed": 0,
+    "modified": 1,
+    "replaced": 0,
+    "no_cost_change": 0,
+    "unknown": 0,
+    "heuristically_matched": 0,
+    "renamed": 0
+  },
+  "decision": {
+    "result": "REQUIRE_APPROVAL",
+    "totals": {
+      "current_monthly": {
+        "amount": "30.3248",
+        "currency": "USD"
+      },
+      "proposed_monthly": {
+        "amount": "92.6458",
+        "currency": "USD"
+      },
+      "monthly_delta": {
+        "amount": "62.3210",
+        "currency": "USD"
+      },
+      "fixed_delta": {
+        "amount": "62.3210",
+        "currency": "USD"
+      },
+      "usage_based_delta": {
+        "amount": "0",
+        "currency": "USD"
+      },
+      "one_time": {
+        "amount": "0",
+        "currency": "USD"
+      },
+      "unknown_component_count": 4,
+      "monthly_hours": 730
+    },
+    "unknowns": {
+      "component_count": 4,
+      "resource_types": [
+        "AWS::EC2::NatGateway",
+        "AWS::ElasticLoadBalancingV2::LoadBalancer",
+        "AWS::RDS::DBInstance"
+      ],
+      "inputs": [
+        {
+          "name": "backup_storage_gb",
+          "reason": "backups are retained for 7 day(s); storage up to the allocated size is included, and whether there is billable excess depends on the database's change rate, which a template does not describe",
+          "remedy": "no usage driver models backup volume yet; treat the instance charge as a floor"
+        },
+        {
+          "name": "outbound_data_gb",
+          "reason": "outbound volume is not attributed to this load balancer; an environment-wide figure cannot be charged to each egress point without counting it more than once",
+          "remedy": "set outbound_data_gb under resource_overrides for LoadBalancer, so the attribution is explicit"
+        },
+        {
+          "name": "load_balancer_capacity_units",
+          "reason": "capacity units are driven by connections, requests, bandwidth and rule evaluations, none of which a template describes",
+          "remedy": "no usage driver models capacity units yet; treat the hourly charge as a floor"
+        },
+        {
+          "name": "nat_processed_gb",
+          "reason": "no data-processing volume is configured for this gateway, and throughput varies by orders of magnitude between environments",
+          "remedy": "set nat_processed_gb in the usage profile, for the environment or as an override for NatGateway"
+        }
+      ]
+    },
+    "policy_evaluations": [
+      {
+        "policy_id": "expensive-development-change",
+        "description": "Development changes above $100 per month require FinOps approval",
+        "matched": false,
+        "evaluated_inputs": {
+          "applies": "yes",
+          "monthly_cost_delta": "$62.32",
+          "threshold": "$100.00"
+        },
+        "matched_conditions": [],
+        "reason": "",
+        "evidence": [],
+        "action": null,
+        "severity": "MEDIUM",
+        "approver_group": null
+      },
+      {
+        "policy_id": "nat-gateway-in-development",
+        "description": "A new NAT Gateway in development requires architecture review",
+        "matched": true,
+        "evaluated_inputs": {
+          "applies": "yes",
+          "added_types": "AWS::EC2::NatGateway",
+          "watched_types": "AWS::EC2::NatGateway"
+        },
+        "matched_conditions": [
+          "added_resource_types"
+        ],
+        "reason": "A new NAT Gateway in development requires architecture review",
+        "evidence": [
+          {
+            "description": "AWS::EC2::NatGateway added",
+            "resource": {
+              "stack": "stack",
+              "logical_id": "NatGateway"
+            },
+            "component_id": null,
+            "source": {
+              "file": "examples/cloudformation/proposed.yaml",
+              "pointer": "/Resources/NatGateway",
+              "line": 57
+            }
+          }
+        ],
+        "action": "REQUIRE_APPROVAL",
+        "severity": "HIGH",
+        "approver_group": "platform-architecture"
+      },
+      {
+        "policy_id": "unresolved-expensive-resource",
+        "description": "Production will not accept an expensive resource whose cost is unknown",
+        "matched": false,
+        "evaluated_inputs": {
+          "applies": "no",
+          "policy_scope": "environments=production",
+          "environment": "development",
+          "application": "payments"
+        },
+        "matched_conditions": [],
+        "reason": "",
+        "evidence": [],
+        "action": null,
+        "severity": "HIGH",
+        "approver_group": null
+      },
+      {
+        "policy_id": "production-replacement",
+        "description": "Replacing a database in production requires approval, whatever it costs",
+        "matched": false,
+        "evaluated_inputs": {
+          "applies": "no",
+          "policy_scope": "environments=production",
+          "environment": "development",
+          "application": "payments"
+        },
+        "matched_conditions": [],
+        "reason": "",
+        "evidence": [],
+        "action": null,
+        "severity": "HIGH",
+        "approver_group": null
+      },
+      {
+        "policy_id": "untagged-resources",
+        "description": "New resources must carry ownership tags",
+        "matched": false,
+        "evaluated_inputs": {
+          "applies": "yes",
+          "required_tags": "Application, Environment",
+          "resources_missing_tags": "0"
+        },
+        "matched_conditions": [],
+        "reason": "",
+        "evidence": [],
+        "action": null,
+        "severity": "LOW",
+        "approver_group": null
+      },
+      {
+        "policy_id": "large-low-confidence-change",
+        "description": "A large change the tool is not confident about warrants a human read, since the number driving the decision may not be reliable.",
+        "matched": false,
+        "evaluated_inputs": {
+          "applies": "yes",
+          "monthly_cost_delta": "$62.32",
+          "threshold": "LOW",
+          "confidence": "UNKNOWN"
+        },
+        "matched_conditions": [],
+        "reason": "",
+        "evidence": [],
+        "action": null,
+        "severity": "MEDIUM",
+        "approver_group": null
+      },
+      {
+        "policy_id": "budget:payments-production-monthly:threshold",
+        "description": "Payments production monthly budget",
+        "matched": true,
+        "evaluated_inputs": {
+          "utilization_percent": "82.5",
+          "monthly_limit": "$2000.00",
+          "basis": "actual+delta"
+        },
+        "matched_conditions": [
+          "warning_percent"
+        ],
+        "reason": "budget payments-production-monthly is at 82.5% of $2000.00, past its warning threshold (measured against reported actual spend plus the estimated change)",
+        "evidence": [
+          {
+            "description": "estimated $0.00 against a $2000.00 limit",
+            "resource": null,
+            "component_id": null,
+            "source": null
+          }
+        ],
+        "action": "WARN",
+        "severity": "HIGH",
+        "approver_group": null
+      },
+      {
+        "policy_id": "budget:pull-request-cost-increase:increase",
+        "description": "Budget pull-request-cost-increase increase cap",
+        "matched": false,
+        "evaluated_inputs": {
+          "estimated_delta": "$62.32",
+          "maximum_monthly_increase": "$100.00"
+        },
+        "matched_conditions": [],
+        "reason": "",
+        "evidence": [],
+        "action": null,
+        "severity": "MEDIUM",
+        "approver_group": null
+      }
+    ],
+    "budget_evaluations": [
+      {
+        "budget_id": "payments-production-monthly",
+        "scope_matched": {
+          "application": "payments",
+          "environment": "production"
+        },
+        "estimated_infrastructure_current": {
+          "amount": "0",
+          "currency": "USD"
+        },
+        "estimated_infrastructure_proposed": {
+          "amount": "0",
+          "currency": "USD"
+        },
+        "estimated_delta": {
+          "amount": "0",
+          "currency": "USD"
+        },
+        "monthly_limit": {
+          "amount": "2000",
+          "currency": "USD"
+        },
+        "maximum_monthly_increase": null,
+        "baseline_actual_monthly": {
+          "amount": "1650",
+          "currency": "USD"
+        },
+        "forecast_monthly": {
+          "amount": "1740",
+          "currency": "USD"
+        },
+        "utilization_percent": "82.500",
+        "headroom": {
+          "amount": "350",
+          "currency": "USD"
+        },
+        "thresholds_crossed": [
+          "warning"
+        ],
+        "unknown_component_count": 0,
+        "basis": "actual+delta"
+      },
+      {
+        "budget_id": "pull-request-cost-increase",
+        "scope_matched": {
+          "environment": "development"
+        },
+        "estimated_infrastructure_current": {
+          "amount": "30.3248",
+          "currency": "USD"
+        },
+        "estimated_infrastructure_proposed": {
+          "amount": "92.6458",
+          "currency": "USD"
+        },
+        "estimated_delta": {
+          "amount": "62.3210",
+          "currency": "USD"
+        },
+        "monthly_limit": null,
+        "maximum_monthly_increase": {
+          "amount": "100",
+          "currency": "USD"
+        },
+        "baseline_actual_monthly": null,
+        "forecast_monthly": null,
+        "utilization_percent": null,
+        "headroom": null,
+        "thresholds_crossed": [],
+        "unknown_component_count": 4,
+        "basis": "estimate"
+      }
+    ],
+    "reasons": [
+      {
+        "text": "budget payments-production-monthly is at 82.5% of $2000.00, past its warning threshold (measured against reported actual spend plus the estimated change)",
+        "policy_id": "budget:payments-production-monthly:threshold",
+        "severity": "HIGH"
+      },
+      {
+        "text": "A new NAT Gateway in development requires architecture review",
+        "policy_id": "nat-gateway-in-development",
+        "severity": "HIGH"
+      }
+    ],
+    "required_approver_groups": [
+      "platform-architecture"
+    ],
+    "errors": []
+  },
+  "cost": {
+    "components": [
+      {
+        "component_id": "stack/ApplicationServer#InstanceHours",
+        "service": "AmazonEC2",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "ApplicationServer"
+        },
+        "pricing_dimension": "InstanceHours",
+        "region": "us-east-1",
+        "unit": "Hrs",
+        "purchase_option": "ON_DEMAND",
+        "quantity": "261",
+        "current_monthly": {
+          "amount": "5.4288",
+          "currency": "USD"
+        },
+        "proposed_monthly": {
+          "amount": "5.4288",
+          "currency": "USD"
+        },
+        "monthly_delta": {
+          "amount": "0.0000",
+          "currency": "USD"
+        },
+        "one_time": null,
+        "low": null,
+        "high": null,
+        "estimate_type": "FIXED",
+        "confidence": "LOW",
+        "confidence_reasons": [
+          "published hourly rate for t3.small",
+          "operating system assumed Linux; the AMI decides it and the template does not say",
+          "261 h/month derived from schedule 'Mon-Fri 08:00-20:00' using 730 h/month"
+        ],
+        "assumptions": [
+          {
+            "subject": "operatingSystem",
+            "value": "Linux",
+            "provenance": "BUILTIN_DEFAULT",
+            "detail": "the operating system is determined by the AMI, which a template does not describe; Windows and commercial Linux distributions cost materially more",
+            "resource": {
+              "stack": "stack",
+              "logical_id": "ApplicationServer"
+            }
+          },
+          {
+            "subject": "monthly_hours",
+            "value": "261",
+            "provenance": "CONFIG_ENVIRONMENT",
+            "detail": "261 h/month derived from schedule 'Mon-Fri 08:00-20:00' using 730 h/month",
+            "resource": {
+              "stack": "stack",
+              "logical_id": "ApplicationServer"
+            }
+          }
+        ],
+        "unknown_inputs": [],
+        "pricing_source": {
+          "provider": "fixture-catalog",
+          "catalog_version": "0.1.0-illustrative",
+          "price_id": "ec2-t3-small",
+          "region": "us-east-1",
+          "retrieved_at": "2026-08-25T00:00:00Z",
+          "authoritative": false
+        }
+      },
+      {
+        "component_id": "stack/ApplicationVolume#EBS-Storage-GB-Month",
+        "service": "AmazonEC2",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "ApplicationVolume"
+        },
+        "pricing_dimension": "EBS-Storage-GB-Month",
+        "region": "us-east-1",
+        "unit": "GB-Mo",
+        "purchase_option": "ON_DEMAND",
+        "quantity": "50",
+        "current_monthly": {
+          "amount": "4.00",
+          "currency": "USD"
+        },
+        "proposed_monthly": {
+          "amount": "4.00",
+          "currency": "USD"
+        },
+        "monthly_delta": {
+          "amount": "0.00",
+          "currency": "USD"
+        },
+        "one_time": null,
+        "low": null,
+        "high": null,
+        "estimate_type": "FIXED",
+        "confidence": "HIGH",
+        "confidence_reasons": [
+          "published rate for gp3 capacity",
+          "50 GB provisioned, resolved from the template",
+          "storage is billed while the volume exists, so a schedule does not reduce it"
+        ],
+        "assumptions": [],
+        "unknown_inputs": [],
+        "pricing_source": {
+          "provider": "fixture-catalog",
+          "catalog_version": "0.1.0-illustrative",
+          "price_id": "ebs-gp3-storage",
+          "region": "us-east-1",
+          "retrieved_at": "2026-08-25T00:00:00Z",
+          "authoritative": false
+        }
+      },
+      {
+        "component_id": "stack/Database#BackupStorage-GB-Month",
+        "service": "AmazonRDS",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "Database"
+        },
+        "pricing_dimension": "BackupStorage-GB-Month",
+        "region": "us-east-1",
+        "unit": "GB-Mo",
+        "purchase_option": "ON_DEMAND",
+        "quantity": null,
+        "current_monthly": null,
+        "proposed_monthly": null,
+        "monthly_delta": null,
+        "one_time": null,
+        "low": null,
+        "high": null,
+        "estimate_type": "UNKNOWN",
+        "confidence": "UNKNOWN",
+        "confidence_reasons": [],
+        "assumptions": [],
+        "unknown_inputs": [
+          {
+            "name": "backup_storage_gb",
+            "reason": "backups are retained for 7 day(s); storage up to the allocated size is included, and whether there is billable excess depends on the database's change rate, which a template does not describe",
+            "remedy": "no usage driver models backup volume yet; treat the instance charge as a floor"
+          }
+        ],
+        "pricing_source": null
+      },
+      {
+        "component_id": "stack/Database#InstanceHours",
+        "service": "AmazonRDS",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "Database"
+        },
+        "pricing_dimension": "InstanceHours",
+        "region": "us-east-1",
+        "unit": "Hrs",
+        "purchase_option": "ON_DEMAND",
+        "quantity": "261",
+        "current_monthly": {
+          "amount": "9.396",
+          "currency": "USD"
+        },
+        "proposed_monthly": {
+          "amount": "18.792",
+          "currency": "USD"
+        },
+        "monthly_delta": {
+          "amount": "9.396",
+          "currency": "USD"
+        },
+        "one_time": null,
+        "low": null,
+        "high": null,
+        "estimate_type": "FIXED",
+        "confidence": "MEDIUM",
+        "confidence_reasons": [
+          "published hourly rate for db.t3.small running postgres, Single-AZ",
+          "261 h/month derived from schedule 'Mon-Fri 08:00-20:00' using 730 h/month",
+          "published hourly rate for db.t3.small running postgres, Multi-AZ"
+        ],
+        "assumptions": [
+          {
+            "subject": "monthly_hours",
+            "value": "261",
+            "provenance": "CONFIG_ENVIRONMENT",
+            "detail": "261 h/month derived from schedule 'Mon-Fri 08:00-20:00' using 730 h/month",
+            "resource": {
+              "stack": "stack",
+              "logical_id": "Database"
+            }
+          }
+        ],
+        "unknown_inputs": [],
+        "pricing_source": {
+          "provider": "fixture-catalog",
+          "catalog_version": "0.1.0-illustrative",
+          "price_id": "rds-db-t3-small-postgres-multi-az",
+          "region": "us-east-1",
+          "retrieved_at": "2026-08-25T00:00:00Z",
+          "authoritative": false
+        }
+      },
+      {
+        "component_id": "stack/Database#Storage-GB-Month",
+        "service": "AmazonRDS",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "Database"
+        },
+        "pricing_dimension": "Storage-GB-Month",
+        "region": "us-east-1",
+        "unit": "GB-Mo",
+        "purchase_option": "ON_DEMAND",
+        "quantity": "100",
+        "current_monthly": {
+          "amount": "11.500",
+          "currency": "USD"
+        },
+        "proposed_monthly": {
+          "amount": "11.500",
+          "currency": "USD"
+        },
+        "monthly_delta": {
+          "amount": "0.000",
+          "currency": "USD"
+        },
+        "one_time": null,
+        "low": null,
+        "high": null,
+        "estimate_type": "FIXED",
+        "confidence": "HIGH",
+        "confidence_reasons": [
+          "published rate for gp3 storage",
+          "100 GB allocated, resolved from the template",
+          "storage is billed while the instance exists, so a schedule does not reduce it"
+        ],
+        "assumptions": [],
+        "unknown_inputs": [],
+        "pricing_source": {
+          "provider": "fixture-catalog",
+          "catalog_version": "0.1.0-illustrative",
+          "price_id": "rds-storage-gp3",
+          "region": "us-east-1",
+          "retrieved_at": "2026-08-25T00:00:00Z",
+          "authoritative": false
+        }
+      },
+      {
+        "component_id": "stack/LoadBalancer#DataTransfer-Out-GB",
+        "service": "AWSELB",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "LoadBalancer"
+        },
+        "pricing_dimension": "DataTransfer-Out-GB",
+        "region": "us-east-1",
+        "unit": "GB",
+        "purchase_option": "ON_DEMAND",
+        "quantity": null,
+        "current_monthly": {
+          "amount": "0",
+          "currency": "USD"
+        },
+        "proposed_monthly": null,
+        "monthly_delta": null,
+        "one_time": null,
+        "low": null,
+        "high": null,
+        "estimate_type": "UNKNOWN",
+        "confidence": "UNKNOWN",
+        "confidence_reasons": [],
+        "assumptions": [],
+        "unknown_inputs": [
+          {
+            "name": "outbound_data_gb",
+            "reason": "outbound volume is not attributed to this load balancer; an environment-wide figure cannot be charged to each egress point without counting it more than once",
+            "remedy": "set outbound_data_gb under resource_overrides for LoadBalancer, so the attribution is explicit"
+          }
+        ],
+        "pricing_source": null
+      },
+      {
+        "component_id": "stack/LoadBalancer#LCU-Hours",
+        "service": "AWSELB",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "LoadBalancer"
+        },
+        "pricing_dimension": "LCU-Hours",
+        "region": "us-east-1",
+        "unit": "Hrs",
+        "purchase_option": "ON_DEMAND",
+        "quantity": null,
+        "current_monthly": {
+          "amount": "0",
+          "currency": "USD"
+        },
+        "proposed_monthly": null,
+        "monthly_delta": null,
+        "one_time": null,
+        "low": null,
+        "high": null,
+        "estimate_type": "UNKNOWN",
+        "confidence": "UNKNOWN",
+        "confidence_reasons": [],
+        "assumptions": [],
+        "unknown_inputs": [
+          {
+            "name": "load_balancer_capacity_units",
+            "reason": "capacity units are driven by connections, requests, bandwidth and rule evaluations, none of which a template describes",
+            "remedy": "no usage driver models capacity units yet; treat the hourly charge as a floor"
+          }
+        ],
+        "pricing_source": null
+      },
+      {
+        "component_id": "stack/LoadBalancer#LoadBalancer-Hours",
+        "service": "AWSELB",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "LoadBalancer"
+        },
+        "pricing_dimension": "LoadBalancer-Hours",
+        "region": "us-east-1",
+        "unit": "Hrs",
+        "purchase_option": "ON_DEMAND",
+        "quantity": "730",
+        "current_monthly": {
+          "amount": "0",
+          "currency": "USD"
+        },
+        "proposed_monthly": {
+          "amount": "16.4250",
+          "currency": "USD"
+        },
+        "monthly_delta": {
+          "amount": "16.4250",
+          "currency": "USD"
+        },
+        "one_time": null,
+        "low": null,
+        "high": null,
+        "estimate_type": "FIXED",
+        "confidence": "MEDIUM",
+        "confidence_reasons": [
+          "published hourly rate for a application load balancer",
+          "billed continuously while it exists, at 730 h/month"
+        ],
+        "assumptions": [
+          {
+            "subject": "monthly_hours",
+            "value": "730",
+            "provenance": "BUILTIN_DEFAULT",
+            "detail": "billed for as long as it exists, so a working-hours schedule does not apply; a schedule would imply deleting and recreating it",
+            "resource": {
+              "stack": "stack",
+              "logical_id": "LoadBalancer"
+            }
+          }
+        ],
+        "unknown_inputs": [],
+        "pricing_source": {
+          "provider": "fixture-catalog",
+          "catalog_version": "0.1.0-illustrative",
+          "price_id": "alb-hours",
+          "region": "us-east-1",
+          "retrieved_at": "2026-08-25T00:00:00Z",
+          "authoritative": false
+        }
+      },
+      {
+        "component_id": "stack/NatEip#PublicIPv4-Hours",
+        "service": "AmazonVPC",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "NatEip"
+        },
+        "pricing_dimension": "PublicIPv4-Hours",
+        "region": "us-east-1",
+        "unit": "Hrs",
+        "purchase_option": "ON_DEMAND",
+        "quantity": "730",
+        "current_monthly": {
+          "amount": "0",
+          "currency": "USD"
+        },
+        "proposed_monthly": {
+          "amount": "3.650",
+          "currency": "USD"
+        },
+        "monthly_delta": {
+          "amount": "3.650",
+          "currency": "USD"
+        },
+        "one_time": null,
+        "low": null,
+        "high": null,
+        "estimate_type": "FIXED",
+        "confidence": "MEDIUM",
+        "confidence_reasons": [
+          "published hourly rate for one public IPv4 address",
+          "charged while allocated, whether or not it is attached",
+          "billed continuously while it exists, at 730 h/month"
+        ],
+        "assumptions": [
+          {
+            "subject": "monthly_hours",
+            "value": "730",
+            "provenance": "BUILTIN_DEFAULT",
+            "detail": "billed for as long as it exists, so a working-hours schedule does not apply; a schedule would imply deleting and recreating it",
+            "resource": {
+              "stack": "stack",
+              "logical_id": "NatEip"
+            }
+          }
+        ],
+        "unknown_inputs": [],
+        "pricing_source": {
+          "provider": "fixture-catalog",
+          "catalog_version": "0.1.0-illustrative",
+          "price_id": "public-ipv4-hours",
+          "region": "us-east-1",
+          "retrieved_at": "2026-08-25T00:00:00Z",
+          "authoritative": false
+        }
+      },
+      {
+        "component_id": "stack/NatGateway#NatGateway-Bytes",
+        "service": "AmazonVPC",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "NatGateway"
+        },
+        "pricing_dimension": "NatGateway-Bytes",
+        "region": "us-east-1",
+        "unit": "GB",
+        "purchase_option": "ON_DEMAND",
+        "quantity": null,
+        "current_monthly": {
+          "amount": "0",
+          "currency": "USD"
+        },
+        "proposed_monthly": null,
+        "monthly_delta": null,
+        "one_time": null,
+        "low": null,
+        "high": null,
+        "estimate_type": "UNKNOWN",
+        "confidence": "UNKNOWN",
+        "confidence_reasons": [],
+        "assumptions": [],
+        "unknown_inputs": [
+          {
+            "name": "nat_processed_gb",
+            "reason": "no data-processing volume is configured for this gateway, and throughput varies by orders of magnitude between environments",
+            "remedy": "set nat_processed_gb in the usage profile, for the environment or as an override for NatGateway"
+          }
+        ],
+        "pricing_source": null
+      },
+      {
+        "component_id": "stack/NatGateway#NatGateway-Hours",
+        "service": "AmazonVPC",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "NatGateway"
+        },
+        "pricing_dimension": "NatGateway-Hours",
+        "region": "us-east-1",
+        "unit": "Hrs",
+        "purchase_option": "ON_DEMAND",
+        "quantity": "730",
+        "current_monthly": {
+          "amount": "0",
+          "currency": "USD"
+        },
+        "proposed_monthly": {
+          "amount": "32.850",
+          "currency": "USD"
+        },
+        "monthly_delta": {
+          "amount": "32.850",
+          "currency": "USD"
+        },
+        "one_time": null,
+        "low": null,
+        "high": null,
+        "estimate_type": "FIXED",
+        "confidence": "MEDIUM",
+        "confidence_reasons": [
+          "published hourly rate for one gateway",
+          "billed continuously while it exists, at 730 h/month"
+        ],
+        "assumptions": [
+          {
+            "subject": "monthly_hours",
+            "value": "730",
+            "provenance": "BUILTIN_DEFAULT",
+            "detail": "billed for as long as it exists, so a working-hours schedule does not apply; a schedule would imply deleting and recreating it",
+            "resource": {
+              "stack": "stack",
+              "logical_id": "NatGateway"
+            }
+          }
+        ],
+        "unknown_inputs": [],
+        "pricing_source": {
+          "provider": "fixture-catalog",
+          "catalog_version": "0.1.0-illustrative",
+          "price_id": "nat-gateway-hours",
+          "region": "us-east-1",
+          "retrieved_at": "2026-08-25T00:00:00Z",
+          "authoritative": false
+        }
+      }
+    ],
+    "totals": {
+      "current_monthly": {
+        "amount": "30.3248",
+        "currency": "USD"
+      },
+      "proposed_monthly": {
+        "amount": "92.6458",
+        "currency": "USD"
+      },
+      "monthly_delta": {
+        "amount": "62.3210",
+        "currency": "USD"
+      },
+      "fixed_delta": {
+        "amount": "62.3210",
+        "currency": "USD"
+      },
+      "usage_based_delta": {
+        "amount": "0",
+        "currency": "USD"
+      },
+      "one_time": {
+        "amount": "0",
+        "currency": "USD"
+      },
+      "unknown_component_count": 4,
+      "monthly_hours": 730
+    },
+    "unknowns": {
+      "component_count": 4,
+      "resource_types": [
+        "AWS::EC2::NatGateway",
+        "AWS::ElasticLoadBalancingV2::LoadBalancer",
+        "AWS::RDS::DBInstance"
+      ],
+      "inputs": [
+        {
+          "name": "backup_storage_gb",
+          "reason": "backups are retained for 7 day(s); storage up to the allocated size is included, and whether there is billable excess depends on the database's change rate, which a template does not describe",
+          "remedy": "no usage driver models backup volume yet; treat the instance charge as a floor"
+        },
+        {
+          "name": "outbound_data_gb",
+          "reason": "outbound volume is not attributed to this load balancer; an environment-wide figure cannot be charged to each egress point without counting it more than once",
+          "remedy": "set outbound_data_gb under resource_overrides for LoadBalancer, so the attribution is explicit"
+        },
+        {
+          "name": "load_balancer_capacity_units",
+          "reason": "capacity units are driven by connections, requests, bandwidth and rule evaluations, none of which a template describes",
+          "remedy": "no usage driver models capacity units yet; treat the hourly charge as a floor"
+        },
+        {
+          "name": "nat_processed_gb",
+          "reason": "no data-processing volume is configured for this gateway, and throughput varies by orders of magnitude between environments",
+          "remedy": "set nat_processed_gb in the usage profile, for the environment or as an override for NatGateway"
+        }
+      ]
+    },
+    "assumptions": [
+      {
+        "subject": "monthly_hours",
+        "value": "261",
+        "provenance": "CONFIG_ENVIRONMENT",
+        "detail": "261 h/month derived from schedule 'Mon-Fri 08:00-20:00' using 730 h/month",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "ApplicationServer"
+        }
+      },
+      {
+        "subject": "operatingSystem",
+        "value": "Linux",
+        "provenance": "BUILTIN_DEFAULT",
+        "detail": "the operating system is determined by the AMI, which a template does not describe; Windows and commercial Linux distributions cost materially more",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "ApplicationServer"
+        }
+      },
+      {
+        "subject": "monthly_hours",
+        "value": "261",
+        "provenance": "CONFIG_ENVIRONMENT",
+        "detail": "261 h/month derived from schedule 'Mon-Fri 08:00-20:00' using 730 h/month",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "Database"
+        }
+      },
+      {
+        "subject": "monthly_hours",
+        "value": "730",
+        "provenance": "BUILTIN_DEFAULT",
+        "detail": "billed for as long as it exists, so a working-hours schedule does not apply; a schedule would imply deleting and recreating it",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "LoadBalancer"
+        }
+      },
+      {
+        "subject": "monthly_hours",
+        "value": "730",
+        "provenance": "BUILTIN_DEFAULT",
+        "detail": "billed for as long as it exists, so a working-hours schedule does not apply; a schedule would imply deleting and recreating it",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "NatEip"
+        }
+      },
+      {
+        "subject": "monthly_hours",
+        "value": "730",
+        "provenance": "BUILTIN_DEFAULT",
+        "detail": "billed for as long as it exists, so a working-hours schedule does not apply; a schedule would imply deleting and recreating it",
+        "resource": {
+          "stack": "stack",
+          "logical_id": "NatGateway"
+        }
+      }
+    ],
+    "region": "us-east-1",
+    "currency": "USD"
+  }
+}
+

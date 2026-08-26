@@ -19,6 +19,7 @@ from rich.console import Console
 from rich.table import Table
 
 from cost_gate import __version__
+from cost_gate.cli.analyze import analyze, explain_decision, explain_estimate
 from cost_gate.cli.pricing import pricing_app
 from cost_gate.config import ConfigError, load_config, write_schemas
 from cost_gate.estimators import COST_FREE_TYPES, default_registry
@@ -40,6 +41,12 @@ app = typer.Typer(
 schema_app = typer.Typer(help="Work with the JSON Schemas for configuration and reports.")
 app.add_typer(schema_app, name="schema")
 app.add_typer(pricing_app, name="pricing")
+
+# Registered here rather than decorated in place, so that cli/analyze.py stays a
+# module of plain functions that a test can call without going through Typer.
+app.command("analyze")(analyze)
+app.command("explain-estimate")(explain_estimate)
+app.command("explain-decision")(explain_decision)
 
 console = Console(stderr=True)
 

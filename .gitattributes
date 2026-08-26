@@ -5,6 +5,7 @@
 # Golden/snapshot files are compared byte-for-byte: never translate them.
 *.golden  -text
 tests/fixtures/**/expected/** -text
+tests/golden/** -text
 
 # Keep binary files untouched.
 *.png binary

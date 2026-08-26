@@ -14,10 +14,10 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 5 | Pricing provider framework | done | see git log |
 | 6 | Fixed-cost AWS estimators | done | see git log |
 | 7 | Usage-based estimators | done | see git log |
-| 8 | AWS Price List adapter (optional provider) | planned | |
+| 8 | AWS Price List adapter (optional provider) | skipped for now | the offline catalog is the default provider, so nothing downstream depends on it |
 | 9 | Budget and policy engine | done | see git log |
-| 10 | FinOps recommendation engine | planned | |
-| 11 | Reporting and CLI | planned | |
+| 10 | FinOps recommendation engine | planned | deferred until after Phase 11 |
+| 11 | Reporting and CLI | done | see git log |
 | 12 | End-to-end demo scenarios | planned | |
 | 13 | CDK integration | planned | |
 | 14 | GitHub pull-request integration | planned | |

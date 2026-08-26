@@ -52,6 +52,7 @@ from cost_gate.parsers.intrinsics import (
 
 __all__ = [
     "CONTEXT_TAG_KEYS",
+    "DEFAULT_SINGLE_STACK",
     "MAX_PROPERTIES_PER_RESOURCE",
     "MAX_STACK_FILES",
     "load_graph",
@@ -282,17 +283,32 @@ def _stack_name(path: Path) -> str:
     return path.stem
 
 
+DEFAULT_SINGLE_STACK = "stack"
+"""Stack name used when a lone template file is loaded without one being supplied.
+
+Resources are matched within a stack, so two single-file snapshots must agree on the
+name or nothing in them can ever pair. Naming both files after themselves - "baseline"
+and "proposed" - would make every resource look deleted and recreated.
+"""
+
+
 def load_graph(
     target: Path,
     *,
     region: str = "us-east-1",
     supplied_parameters: Mapping[str, str] | None = None,
     default_context: ResourceContext | None = None,
+    stack_name: str | None = None,
 ) -> ResourceGraph:
     """Load one template file, or every template in a directory, into one graph.
 
     A directory becomes a multi-stack graph, with each file contributing a stack named
     after it. Files are processed in sorted order so the result is reproducible.
+
+    ``stack_name`` overrides the derived name for a single file. Two snapshots of the
+    same stack must use the same name, or the diff engine cannot pair anything in them:
+    matching is scoped to a stack, and "baseline/Database" is a different resource from
+    "proposed/Database".
 
     Raises:
         TemplateError: if a template is unreadable or structurally invalid, or if the
@@ -311,8 +327,10 @@ def load_graph(
                 target,
                 f"directory contains {len(paths)} templates; the maximum is {MAX_STACK_FILES}",
             )
+        stack_names = {path: _stack_name(path) for path in paths}
     else:
         paths = [target]
+        stack_names = {target: stack_name or DEFAULT_SINGLE_STACK}
 
     resources: list[NormalizedResource] = []
     stacks: list[str] = []
@@ -321,7 +339,7 @@ def load_graph(
     for path in paths:
         document = load_template_file(path)
         text = path.read_text(encoding="utf-8")
-        stack = _stack_name(path)
+        stack = stack_names[path]
         stacks.append(stack)
         loaded, unknown_parameters = normalize_template(
             document,

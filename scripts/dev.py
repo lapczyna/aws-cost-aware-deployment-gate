@@ -39,10 +39,14 @@ class TaskError(Exception):
     """Raised when a task command exits non-zero."""
 
 
-def run(*command: str, allow_fail: bool = False) -> int:
+def run(
+    *command: str,
+    allow_fail: bool = False,
+    env: dict[str, str] | None = None,
+) -> int:
     """Run a command from the repository root, echoing it first."""
     print(f"{DIM}$ {' '.join(command)}{OFF}")
-    completed = subprocess.run(command, cwd=ROOT, check=False)  # noqa: S603
+    completed = subprocess.run(command, cwd=ROOT, check=False, env=env)  # noqa: S603
     if completed.returncode != 0 and not allow_fail:
         raise TaskError(f"{command[0]} exited with {completed.returncode}")
     return completed.returncode
@@ -163,6 +167,20 @@ def task_demo(extra: Sequence[str]) -> None:
     run(PY, "-m", "cost_gate.cli.main", "demo", *extra, allow_fail=True)
 
 
+def task_golden(extra: Sequence[str]) -> None:
+    """Check the golden reports, or rewrite them with `--update`.
+
+    Rewriting is deliberately a separate verb from running the tests: a golden file
+    that regenerates itself whenever it disagrees with the code cannot fail, and so
+    protects nothing. Review the resulting diff before committing it.
+    """
+    environment = dict(os.environ)
+    if "--update" in extra:
+        environment["UPDATE_GOLDEN"] = "1"
+        extra = [item for item in extra if item != "--update"]
+    run(PY, "-m", "pytest", "tests/e2e/test_golden.py", "-q", *extra, env=environment)
+
+
 def task_analyze(extra: Sequence[str]) -> None:
     """Run an analysis; arguments after `--` are passed through."""
     run(PY, "-m", "cost_gate.cli.main", "analyze", *extra, allow_fail=True)
@@ -228,6 +246,7 @@ TASKS: dict[str, Callable[[Sequence[str]], None]] = {
     "check-workflows": task_check_workflows,
     "build": task_build,
     "demo": task_demo,
+    "golden": task_golden,
     "analyze": task_analyze,
     "synth": task_synth,
     "clean": task_clean,

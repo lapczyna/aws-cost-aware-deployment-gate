@@ -37,14 +37,16 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 6 | Fixed-cost AWS estimators | `e1129a5` |
 | 7 | Usage-based estimators | `43318e6` |
 | 8 | AWS Price List adapter | **skipped for now** (see below) |
-| 9 | Budget and policy engine | *(recorded at commit time)* |
+| 9 | Budget and policy engine | `ae602a8` |
+| 10 | FinOps recommendation engine | **deferred** — nothing depends on it |
+| 11 | Reporting, CLI and the end-to-end pipeline | *(recorded at commit time)* |
 
 ## Current state of the repository
 
-The pipeline prices thirteen resource types and turns the result into an explainable
-gate decision. **No policy
-evaluation, budgets or reporting exists yet** — a `CostReport` is produced but nothing
-renders or gates on it. That is Phases 9 and 11.
+The tool is **complete end to end**: `cost-gate analyze` reads two CloudFormation
+snapshots, prices thirteen resource types, applies budgets and policies, renders the
+result as console/JSON/Markdown, and exits with a code CI can act on. What remains is
+breadth (more scenarios, CDK input, the GitHub integration), not missing structure.
 
 Domain (`src/cost_gate/domain/`):
 
@@ -170,13 +172,33 @@ Budgets and policies (`config/budgets.py`, `config/policies.py`, `budgets/`, `po
 `yaml_bounds.py` (top level, outside the layer contract) holds the loader bounds shared by
 config and template parsing, including **duplicate-key rejection**.
 
-Also: `schemas/` (4 generated files), `examples/config/` (annotated sample config),
-`tests/fixtures/templates/` (intrinsics fixture in YAML with a generated JSON sibling, plus a
-CDK-style multi-stack directory), `cost-gate validate-config` and `cost-gate schema export`.
+`reporting/` (Phase 11):
+
+* `escaping.py` — the single place attacker-influenced text is made safe for a
+  pull-request comment. Markup characters become HTML **entities** rather than
+  backslash escapes, because a backslash escape only works if the renderer honours it.
+  Code spans grow a fence longer than any backtick run inside them.
+* `markdown.py` — the pull-request comment. `COMMENT_MARKER` makes it updatable in
+  place; `MAX_COMMENT_BYTES`/`MAX_TABLE_ROWS` bound it. The unknown section is
+  **never** collapsed into `<details>`, and its *count* is never truncated even when
+  the enumeration is.
+* `json_report.py`, `console.py` (everything to **stderr**, so `--format json` can be
+  redirected), `reconcile.py` (a report that does not add up is `ERROR`, not a warning).
+
+`pipeline.py` — `run_analysis` joins parse → diff → estimate → budgets → policies →
+decide → reconcile. The CLI, the demo command and any future GitHub action must all go
+through it, or they will drift from each other.
+
+`adapters/clock.py` — `SystemClock` / `FixedClock`. The only source of time.
+
+Also: `schemas/` (7 generated files, now including `artifact.schema.json`),
+`examples/config/`, `examples/cloudformation/` (the worked example),
+`tests/golden/` (byte-compared reports), `tests/factories.py` (domain builders for
+tests), `tests/fixtures/templates/`.
 
 Still absent:
-`recommendations/`, `reporting/`, `adapters/`, `observability/`, the pricing catalog,
-budget/policy configuration models, `infrastructure/`.
+`recommendations/`, `observability/`, `infrastructure/`, the AWS Price List adapter,
+the GitHub workflows and the demo scenarios.
 
 ## Environment facts that affect implementation
 
@@ -242,6 +264,28 @@ budget/policy configuration models, `infrastructure/`.
 21. Tests that assert an exact count of registered estimators break every time coverage
     grows, which trains people to bump the number without reading what changed. Assert
     the expected types are present instead.
+22. **Two single files must share a stack name.** Matching is scoped to a stack, so a
+    baseline named `baseline.yaml` and a proposal named `proposed.yaml` describe two
+    different stacks, and *every* resource looks deleted and recreated. `run_analysis`
+    passes `DEFAULT_SINGLE_STACK` when both sides are files. Found only by running the
+    CLI end to end — no unit test could have seen it.
+23. `GateDecision` rejects a result its own policy evaluations do not imply, and a
+    `REQUIRE_APPROVAL` policy must name an approver group. Test factories therefore
+    cannot assert a verdict into existence; they have to build a policy that justifies
+    it. That is the validator working, not an obstacle to route around.
+24. `str.splitlines()` splits on U+2028/U+2029, which the zero-width character pattern
+    itself contains. Editing that file line-wise with `splitlines()` corrupts it; use
+    `split("\n")`.
+25. Do not write literal zero-width or bidirectional characters into source, even in the
+    module that strips them — Ruff's `PLE2502`/`RUF001` are right, and an invisible
+    character in a test is unreviewable. Use `\u200b`-style escapes.
+26. `escape_markdown` converts `<`, `>` and `&` to HTML entities rather than
+    backslash-escaping them. A backslash escape renders literally only if the renderer
+    honours it; an entity is unambiguous everywhere. `&` must be converted first.
+27. A `CostComponent` does not carry its resource type — the estimation engine derives
+    `UnknownSummary.resource_types` from the graphs it priced.
+28. `git checkout -- <path>` silently does nothing for an **untracked** file. When
+    probing whether a test really fails, revert the probe explicitly and re-check.
 
 ## Verification commands
 
@@ -297,27 +341,30 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
 
 ## Exact recommended next action
 
-**Phase 11 — reporting and the `analyze` command.** Everything the pipeline needs exists;
-nothing joins it up. This is the phase that makes the project demonstrable.
+**Phase 12 — deterministic demo scenarios.** The gate now runs end to end, so the next
+job is to prove it does so across the range of situations it claims to handle, not just
+the one worked example.
 
-* `src/cost_gate/reporting/` — a console renderer (Rich), a versioned JSON renderer
-  (`schema_version`, and `report.schema.json` is already generated), and a Markdown
-  renderer for pull requests.
-* **Escaping is not optional.** Logical IDs, tag values and intrinsic expressions are
-  attacker-influenced and end up in a pull-request comment. One central escaper:
-  backticks, pipes, angle brackets, `@` mentions, control characters, with a length cap.
-  Test it with a template whose logical ID is `<img src=x onerror=...>`.
-* Reconciliation checks before rendering: `current + delta == proposed`,
-  `fixed + usage == delta`, every unknown counted, every `REMOVE` non-positive. A failure
-  is `ERROR` (30), not a warning — printing a report that does not add up is worse than
-  refusing to print one.
-* `cost-gate analyze --baseline X --proposed Y [--config ...] [--output-json ...]
-  [--output-markdown ...] [--fail-on ...]`, returning the documented exit codes.
-* `cost-gate explain-estimate --report r.json --resource Foo` and `explain-decision`.
+* `tests/fixtures/scenarios/<name>/{baseline,proposed}.yaml` plus an expected result and
+  exit code per scenario. The 17 scenarios are listed in the original brief: NAT gateway
+  in development, unresolved production EKS, low-cost tag change, instance resize,
+  deletion (a negative delta), an unsupported resource type, a CDK hash-suffix rename,
+  and so on.
+* `cost-gate demo [--list] [--scenario name]`, driving the same `run_analysis` the CLI
+  uses. A demo that assembled the pipeline itself would eventually disagree with the
+  real one.
+* Reuse the golden-file mechanism from Phase 11 (`tests/e2e/test_golden.py`,
+  `python scripts/dev.py golden --update`) rather than inventing a second one.
 
-Determinism is the hard requirement: same input, byte-identical output. Time and run ids
-must come from an injected clock, and golden files must be written with `newline="
-"`
-because `core.autocrlf` is on here.
+Things Phase 11 established that Phase 12 depends on:
 
-Commit message: `feat: expose deployment gate through cli and reports`
+* `run_analysis(AnalysisRequest(...))` in `src/cost_gate/pipeline.py` is the single
+  entry point. `AnalysisError` means no trustworthy answer (exit 30); a report full of
+  unknowns is a *successful* run.
+* `FixedClock` in `adapters/clock.py` is what makes output byte-stable. Any new golden
+  file must use it.
+* When both sides are single files, the pipeline passes a shared stack name
+  (`DEFAULT_SINGLE_STACK`). Without it nothing pairs across the two snapshots and every
+  resource looks deleted and recreated.
+
+Commit message: `test: add deterministic deployment gate scenarios`
