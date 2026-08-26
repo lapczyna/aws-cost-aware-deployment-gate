@@ -1,0 +1,21 @@
+# Configuration for analysing this repository's own optional infrastructure.
+#
+# Separate from examples/config/ because a usage profile describes a workload, and this
+# workload is nothing like the payments application the examples describe. Referenced
+# paths are confined to this directory, which is why the file is self-contained.
+version: 1
+
+region: us-east-1
+currency: USD
+monthly_hours: 730
+
+environment: production
+application: cost-gate
+team: payments-platform
+
+usage_profile: usage.yaml
+budgets: budgets.yaml
+policies: policies.yaml
+
+pricing:
+  provider: fixtures

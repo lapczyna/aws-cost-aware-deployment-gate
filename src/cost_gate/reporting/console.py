@@ -49,6 +49,7 @@ def render_console(artifact: AnalysisArtifact, console: Console, verbose: bool =
     _print_contributors(artifact, console)
     _print_unknowns(artifact, console, verbose)
     _print_budgets(artifact, console)
+    _print_warnings(artifact, console)
 
     console.print(f"  Result: [{style} bold]{decision.result.value}[/{style} bold]")
     for reason in decision.reasons:
@@ -122,6 +123,15 @@ def _print_budgets(artifact: AnalysisArtifact, console: Console) -> None:
         )
         console.print(f"  Budget {evaluation.budget_id}: {utilisation} ({evaluation.basis})")
     console.print()
+
+
+def _print_warnings(artifact: AnalysisArtifact, console: Console) -> None:
+    """Advisories about the configuration rather than the change."""
+    if not artifact.warnings:
+        return
+    console.print("\n  [yellow]Configuration[/yellow]")
+    for warning in artifact.warnings:
+        console.print(f"    {warning}")
 
 
 def _print_verbose(artifact: AnalysisArtifact, console: Console) -> None:

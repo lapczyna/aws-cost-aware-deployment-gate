@@ -1,0 +1,57 @@
+# What this infrastructure actually does.
+#
+# The point of a per-workload usage profile is visible in this file's history: analysed
+# under the payments application's production profile, this design "cost" $53/month,
+# almost all of it CloudWatch Logs at an assumed 100 GB. A Lambda that runs four times
+# a month does not ingest 100 GB of logs.
+#
+# The tool was not wrong; the configuration was. A usage profile is scoped by
+# environment, so pointing a second workload at another application's config gives you
+# that application's traffic assumptions applied to your resources. Every number below
+# is a claim about *this* system, and each one is reviewable.
+version: 1
+
+defaults:
+  monthly_hours: 730
+
+environments:
+  production:
+    monthly_hours: 730
+
+    # The refresher runs weekly. Four invocations a month, each a few seconds.
+    requests_per_month: 4
+
+    # Downloading price lists, not serving traffic.
+    outbound_data_gb: 1
+
+    # Four short runs, each logging a summary. Generous at 0.1 GB; the true figure is
+    # nearer a megabyte, but rounding *up* on an assumption is the safer direction.
+    log_ingestion_gb: "0.1"
+
+resource_overrides:
+  RefreshCatalog:
+    invocations_per_month:
+      min: 4
+      expected: 4
+      # Retries plus the occasional manual run. Even the upper bound is negligible,
+      # which is the useful thing to be able to say about a scheduled job.
+      max: 20
+    average_duration_ms: 45000
+    allocated_memory_mb: 512
+
+  Predictions:
+    # One record per analysed pull request, and reads only when accuracy is reviewed.
+    dynamodb_write_requests_per_month: 2000
+    dynamodb_read_requests_per_month: 500
+    dynamodb_storage_gb: "0.5"
+
+  PricingSnapshots:
+    # One catalog per week, a few hundred kilobytes each, expiring after a year.
+    s3_put_requests_per_month: 20
+    s3_get_requests_per_month: 200
+    storage_gb: 1
+
+  RefreshLogs:
+    # Four short runs a month, each logging a summary.
+    log_ingestion_gb: "0.1"
+    log_retention_days: 30

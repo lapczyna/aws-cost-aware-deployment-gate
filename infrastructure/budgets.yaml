@@ -1,0 +1,19 @@
+# The budget this infrastructure holds itself to.
+#
+# Applying the tool's own advice to the tool's own infrastructure is the cheapest way
+# to find out whether the advice is any good. The limit matches MONTHLY_BUDGET_USD in
+# app.py: if the estimate ever exceeds it, the design is wrong rather than the budget.
+version: 1
+
+budgets:
+  - id: cost-gate-infrastructure
+    description: The gate's own optional infrastructure
+    scope:
+      application: cost-gate
+    monthly_limit: 5
+    thresholds:
+      warning_percent: 60
+      approval_percent: 80
+      blocking_percent: 100
+    approver_group: finops
+    severity: HIGH

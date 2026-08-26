@@ -1,0 +1,246 @@
+{
+ "Resources": {
+  "PricingSnapshots7CE389F8": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 7
+       },
+       "ExpirationInDays": 365,
+       "Id": "expire-old-snapshots",
+       "NoncurrentVersionExpiration": {
+        "NoncurrentDays": 30
+       },
+       "Status": "Enabled",
+       "Transitions": [
+        {
+         "StorageClass": "STANDARD_IA",
+         "TransitionInDays": 30
+        }
+       ]
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "cost-gate"
+     },
+     {
+      "Key": "Environment",
+      "Value": "production"
+     },
+     {
+      "Key": "Team",
+      "Value": "payments-platform"
+     }
+    ],
+    "VersioningConfiguration": {
+     "Status": "Enabled"
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "CostGateStorage/PricingSnapshots/Resource"
+   }
+  },
+  "PricingSnapshotsPolicy30F3B877": {
+   "Type": "AWS::S3::BucketPolicy",
+   "Properties": {
+    "Bucket": {
+     "Ref": "PricingSnapshots7CE389F8"
+    },
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "s3:*",
+       "Condition": {
+        "Bool": {
+         "aws:SecureTransport": "false"
+        }
+       },
+       "Effect": "Deny",
+       "Principal": {
+        "AWS": "*"
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "PricingSnapshots7CE389F8",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "PricingSnapshots7CE389F8",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CostGateStorage/PricingSnapshots/Policy/Resource"
+   }
+  },
+  "PredictionsD178A010": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "pk",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "sk",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "KeySchema": [
+     {
+      "AttributeName": "pk",
+      "KeyType": "HASH"
+     },
+     {
+      "AttributeName": "sk",
+      "KeyType": "RANGE"
+     }
+    ],
+    "PointInTimeRecoverySpecification": {
+     "PointInTimeRecoveryEnabled": true
+    },
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "cost-gate"
+     },
+     {
+      "Key": "Environment",
+      "Value": "production"
+     },
+     {
+      "Key": "Team",
+      "Value": "payments-platform"
+     }
+    ],
+    "TimeToLiveSpecification": {
+     "AttributeName": "expires_at",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "CostGateStorage/Predictions/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/0WKWwrDIBQF15L/62010AW0Gwhp/4uvUqtRiEoQce8htdCvmTMchuzCkA58i0QqS5wRWO+JSwt8i88aR6zXLK1OcHv5n3VMwRlZ/rnvBqp4vgQlsD64cPo4fKU1mHUMeZW6wVTSO/jTiJQhPQ+faAxZs09m0Th37uc6YUCbAAAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "CostGateStorage/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "ExportsOutputFnGetAttPricingSnapshots7CE389F8ArnF4F9C165": {
+   "Value": {
+    "Fn::GetAtt": [
+     "PricingSnapshots7CE389F8",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "CostGateStorage:ExportsOutputFnGetAttPricingSnapshots7CE389F8ArnF4F9C165"
+   }
+  },
+  "ExportsOutputRefPricingSnapshots7CE389F8EBBDA507": {
+   "Value": {
+    "Ref": "PricingSnapshots7CE389F8"
+   },
+   "Export": {
+    "Name": "CostGateStorage:ExportsOutputRefPricingSnapshots7CE389F8EBBDA507"
+   }
+  },
+  "PublishOutputFnGetAttPricingSnapshots7CE389F8Arn009EC7A2": {
+   "Value": {
+    "Fn::GetAtt": [
+     "PricingSnapshots7CE389F8",
+     "Arn"
+    ]
+   }
+  },
+  "PublishOutputRefPricingSnapshots7CE389F851715017": {
+   "Value": {
+    "Ref": "PricingSnapshots7CE389F8"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

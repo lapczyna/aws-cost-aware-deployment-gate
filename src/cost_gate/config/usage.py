@@ -19,6 +19,7 @@ profile `development`" instead of presenting an assumption as a fact.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from decimal import Decimal
 from typing import Any, Literal, Self
 
@@ -237,6 +238,21 @@ class ResolvedDriver(BaseModel):
     detail: str = ""
 
 
+def _construct_ids(construct_path: str) -> list[str]:
+    """Candidate construct ids from a path, most specific first.
+
+    ``Stack/Api/Function/Resource`` yields ``Function`` then ``Api``. The trailing
+    ``Resource`` and ``Default`` segments are CDK's own naming for the L1 construct
+    inside an L2, so they are never what an author means.
+    """
+    segments = [
+        segment
+        for segment in construct_path.split("/")
+        if segment and segment not in ("Resource", "Default")
+    ]
+    return list(reversed(segments[1:])) if len(segments) > 1 else segments
+
+
 class UsageProfileConfig(BaseModel):
     """A version-controlled set of usage assumptions."""
 
@@ -254,12 +270,63 @@ class UsageProfileConfig(BaseModel):
             return None
         return self.environments.get(name)
 
+    def override_for(
+        self, logical_id: str | None, construct_path: str | None = None
+    ) -> EnvironmentUsage | None:
+        """Find the override for a resource, by whichever name its author used.
+
+        Three keys are tried, most specific first:
+
+        1. the **logical ID** exactly — right for hand-written CloudFormation;
+        2. the **construct path** in full, e.g. ``Stack/Refresh/Resource``;
+        3. the **construct id**, the last meaningful segment of that path.
+
+        The third is what makes this usable with CDK at all. CDK derives logical IDs by
+        appending a hash of the construct path, so a function written as ``Refresh``
+        appears in the template as ``Refresh6FFEA4AA``. An override keyed by ``Refresh``
+        would never match, and — worse — would fail *silently*: the author would see an
+        unknown cost and no indication that the configuration they wrote was ignored.
+
+        Matching the construct id rather than the hashed logical ID is also the stable
+        choice, for the same reason resources are paired on construct path (ADR 0004):
+        the hash changes when a construct moves, and an override should not.
+        """
+        if logical_id and logical_id in self.resource_overrides:
+            return self.resource_overrides[logical_id]
+        if construct_path:
+            if construct_path in self.resource_overrides:
+                return self.resource_overrides[construct_path]
+            for key in _construct_ids(construct_path):
+                if key in self.resource_overrides:
+                    return self.resource_overrides[key]
+        return None
+
+    def unmatched_overrides(self, resources: Iterable[tuple[str, str | None]]) -> tuple[str, ...]:
+        """Override keys that matched no resource in this analysis.
+
+        A usage override that never fires is worse than no override: it looks like a
+        decision has been recorded when nothing has, which is the same argument the
+        policy engine makes about a rule that never matches.
+        """
+        matched: set[str] = set()
+        for logical_id, construct_path in resources:
+            if logical_id in self.resource_overrides:
+                matched.add(logical_id)
+            if construct_path:
+                if construct_path in self.resource_overrides:
+                    matched.add(construct_path)
+                matched.update(
+                    key for key in _construct_ids(construct_path) if key in self.resource_overrides
+                )
+        return tuple(sorted(set(self.resource_overrides) - matched))
+
     def resolve(
         self,
         driver: str,
         *,
         environment: str | None = None,
         logical_id: str | None = None,
+        construct_path: str | None = None,
     ) -> ResolvedDriver | None:
         """Resolve one driver, applying the documented precedence.
 
@@ -283,7 +350,7 @@ class UsageProfileConfig(BaseModel):
 
         candidates: list[tuple[EnvironmentUsage | None, ValueProvenance, str]] = [
             (
-                self.resource_overrides.get(logical_id) if logical_id else None,
+                self.override_for(logical_id, construct_path),
                 ValueProvenance.CONFIG_RESOURCE_OVERRIDE,
                 f"resource override for {logical_id}",
             ),
@@ -309,10 +376,11 @@ class UsageProfileConfig(BaseModel):
         *,
         environment: str | None = None,
         logical_id: str | None = None,
+        construct_path: str | None = None,
         default: int = DEFAULT_MONTHLY_HOURS,
     ) -> tuple[int, ValueProvenance, str]:
         """Resolve monthly runtime hours with the same precedence as drivers."""
-        override = self.resource_overrides.get(logical_id) if logical_id else None
+        override = self.override_for(logical_id, construct_path)
         if override is not None and (
             override.monthly_hours is not None or override.schedule is not None
         ):

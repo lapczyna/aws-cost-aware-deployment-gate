@@ -238,6 +238,21 @@ def task_synth(extra: Sequence[str]) -> None:
         shutil.copytree(ROOT / "examples" / "cdk" / "synthesized" / name, target)
         print(f"{DIM}synced {target.relative_to(ROOT)}{OFF}")
 
+    # The optional infrastructure is synthesised the same way, and analysed by the gate
+    # itself - see docs/infrastructure.md.
+    run(
+        PY,
+        "-m",
+        "cost_gate.cli.main",
+        "cdk",
+        "snapshot",
+        "--app",
+        "infrastructure",
+        "--out",
+        "infrastructure/synthesized",
+        "--force",
+    )
+
 
 def task_clean(extra: Sequence[str]) -> None:
     """Remove build outputs and tool caches."""

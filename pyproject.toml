@@ -134,10 +134,11 @@ ignore = [
     "S603",     # subprocess: test fixtures build their own git repositories
     "S607",     # partial executable paths: `git` from PATH is what a developer has
 ]
-# Example CDK code should read like the ecosystem it is demonstrating. Idiomatic CDK
-# Python does not annotate **kwargs or document __init__, and making the example
-# unidiomatic to satisfy a linter would teach the wrong thing.
+# CDK code should read like the ecosystem it is demonstrating. Idiomatic CDK Python
+# does not annotate **kwargs or document __init__, and making these unidiomatic to
+# satisfy a linter would teach the wrong thing.
 "examples/cdk/**" = ["D107", "ANN003", "ANN401"]
+"infrastructure/**" = ["D107", "ANN003", "ANN401"]
 "scripts/**" = ["T20", "D"]                     # the dev runner prints by design
 "src/cost_gate/reporting/**" = ["T20"]          # the reporting layer prints by design
 
@@ -210,7 +211,7 @@ exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedE
 # Bandit
 # ---------------------------------------------------------------------------
 [tool.bandit]
-exclude_dirs = ["tests", ".venv", "build", "dist", "examples"]
+exclude_dirs = ["tests", ".venv", "build", "dist", "examples", "infrastructure"]
 
 # B404 fires on `import subprocess` itself, which is not a finding: it says nothing
 # about how the module is used. The two places that use it - adapters/git.py and

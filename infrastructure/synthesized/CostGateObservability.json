@@ -1,0 +1,151 @@
+{
+ "Resources": {
+  "CostGateAlarms49BF37B9": {
+   "Type": "AWS::SNS::Topic",
+   "Properties": {
+    "DisplayName": "cost-gate alarms",
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "cost-gate"
+     },
+     {
+      "Key": "Environment",
+      "Value": "production"
+     },
+     {
+      "Key": "Team",
+      "Value": "payments-platform"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "CostGateObservability/CostGateAlarms/Resource"
+   }
+  },
+  "RefreshFailedA86A9EC5": {
+   "Type": "AWS::CloudWatch::Alarm",
+   "Properties": {
+    "AlarmActions": [
+     {
+      "Ref": "CostGateAlarms49BF37B9"
+     }
+    ],
+    "AlarmDescription": "The pricing refresher failed. Reports will use the previous catalog, which is safe but ages.",
+    "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+    "Dimensions": [
+     {
+      "Name": "FunctionName",
+      "Value": {
+       "Fn::GetStackOutput": {
+        "StackName": "CostGateRefresh",
+        "Region": "us-east-1",
+        "OutputName": "PublishOutputRefRefreshCatalog6FFEA4AAE6806D3E"
+       }
+      }
+     }
+    ],
+    "EvaluationPeriods": 1,
+    "MetricName": "Errors",
+    "Namespace": "AWS/Lambda",
+    "Period": 3600,
+    "Statistic": "Sum",
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "cost-gate"
+     },
+     {
+      "Key": "Environment",
+      "Value": "production"
+     },
+     {
+      "Key": "Team",
+      "Value": "payments-platform"
+     }
+    ],
+    "Threshold": 1,
+    "TreatMissingData": "notBreaching"
+   },
+   "Metadata": {
+    "aws:cdk:path": "CostGateObservability/RefreshFailed/Resource"
+   }
+  },
+  "MonthlyBudget": {
+   "Type": "AWS::Budgets::Budget",
+   "Properties": {
+    "Budget": {
+     "BudgetLimit": {
+      "Amount": 5,
+      "Unit": "USD"
+     },
+     "BudgetName": "cost-gate-infrastructure",
+     "BudgetType": "COST",
+     "TimeUnit": "MONTHLY"
+    },
+    "NotificationsWithSubscribers": [
+     {
+      "Notification": {
+       "ComparisonOperator": "GREATER_THAN",
+       "NotificationType": "ACTUAL",
+       "Threshold": 80,
+       "ThresholdType": "PERCENTAGE"
+      },
+      "Subscribers": [
+       {
+        "Address": "cost-gate-alarms@example.invalid",
+        "SubscriptionType": "EMAIL"
+       }
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "CostGateObservability/MonthlyBudget"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/yXJQQ7CIBBA0bN0D6Ng4l57AaPuDR1ai6WD6UCIIdzdiKv/kq9BHzWozmSWaBfp3QDlFg0uwmR+FCaGcg9vh6KfqKEK9CHZbCLOUE7ebOvvNVQxJPscI0M/0bmxVnH5xDnQ7gBKg9p3L3ZObomiW0e4/vsF4meMP4gAAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "CostGateObservability/CDKMetadata/Default"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

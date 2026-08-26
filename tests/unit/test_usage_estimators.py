@@ -394,3 +394,80 @@ class TestCoverage:
                 if estimate.is_unknown:
                     assert estimate.unknown_inputs[0].name, resource_type
                     assert estimate.unknown_inputs[0].reason, resource_type
+
+
+class TestOverridesMatchCdkIdentities:
+    """A usage override must find the resource its author meant.
+
+    CDK derives logical IDs by appending a hash of the construct path, so a function
+    written as ``Refresh`` appears in the template as ``Refresh6FFEA4AA``. Before this
+    was fixed an override keyed by ``Refresh`` matched nothing, and — worse — did so
+    silently: the author saw an unknown cost and no indication their configuration had
+    been ignored.
+    """
+
+    def profile(self) -> UsageProfileConfig:
+        return UsageProfileConfig.model_validate(
+            {
+                "version": 1,
+                "resource_overrides": {
+                    "Refresh": {"invocations_per_month": 4},
+                    "app/Explicit/Resource": {"invocations_per_month": 9},
+                },
+            }
+        )
+
+    def test_an_exact_logical_id_still_wins(self):
+        assert self.profile().override_for("Refresh", None) is not None
+
+    def test_a_construct_id_inside_a_cdk_path_matches(self):
+        # The whole point: the template says Refresh6FFEA4AA, the config says Refresh.
+        assert self.profile().override_for("Refresh6FFEA4AA", "app/Refresh/Resource") is not None
+
+    def test_a_full_construct_path_matches(self):
+        assert self.profile().override_for("ExplicitABC123", "app/Explicit/Resource") is not None
+
+    def test_the_resource_and_default_segments_are_ignored(self):
+        # They are CDK's own naming for the L1 construct inside an L2, never what an
+        # author means.
+        profile = UsageProfileConfig.model_validate(
+            {"version": 1, "resource_overrides": {"Resource": {"invocations_per_month": 1}}}
+        )
+        assert profile.override_for("Thing123", "app/Thing/Resource") is None
+
+    def test_an_unrelated_resource_matches_nothing(self):
+        assert self.profile().override_for("Other123", "app/Other/Resource") is None
+
+    def test_a_resource_without_a_construct_path_still_works(self):
+        # Hand-written CloudFormation has no aws:cdk:path metadata at all.
+        assert self.profile().override_for("Refresh", None) is not None
+        assert self.profile().override_for("Unknown", None) is None
+
+
+class TestUnmatchedOverridesAreReported:
+    def test_an_override_matching_nothing_is_named(self):
+        # An override that never fires looks like a decision has been recorded when
+        # none has - the same argument the policy engine makes about a rule that never
+        # matches.
+        profile = UsageProfileConfig.model_validate(
+            {
+                "version": 1,
+                "resource_overrides": {
+                    "Present": {"invocations_per_month": 1},
+                    "Absent": {"invocations_per_month": 1},
+                },
+            }
+        )
+        assert profile.unmatched_overrides([("Present", None)]) == ("Absent",)
+
+    def test_an_override_matched_by_construct_path_counts_as_used(self):
+        profile = UsageProfileConfig.model_validate(
+            {"version": 1, "resource_overrides": {"Refresh": {"invocations_per_month": 1}}}
+        )
+        assert profile.unmatched_overrides([("Refresh6FFEA4AA", "app/Refresh/Resource")]) == ()
+
+    def test_nothing_is_reported_when_everything_matches(self):
+        profile = UsageProfileConfig.model_validate(
+            {"version": 1, "resource_overrides": {"Present": {"invocations_per_month": 1}}}
+        )
+        assert profile.unmatched_overrides([("Present", None)]) == ()

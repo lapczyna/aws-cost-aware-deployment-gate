@@ -180,6 +180,7 @@ class EstimationContext:
         hours, provenance, detail = self.usage.monthly_hours(
             environment=environment,
             logical_id=resource.key.logical_id,
+            construct_path=resource.construct_path,
             default=self.monthly_hours,
         )
         return (
@@ -268,6 +269,7 @@ class EstimationContext:
             name,
             environment=resource.context.environment or self.environment,
             logical_id=resource.key.logical_id,
+            construct_path=resource.construct_path,
         )
         if resolved is None:
             return None

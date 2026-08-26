@@ -1,0 +1,31 @@
+# Policies for this repository's own infrastructure.
+#
+# Deliberately stricter than the example set. This is a system whose entire premise is
+# that it costs almost nothing at idle, so anything that would introduce a standing
+# hourly charge is a design error rather than a trade-off to weigh.
+version: 1
+
+policies:
+  - id: no-always-on-compute
+    description: >-
+      This infrastructure is serverless by design. An instance, a NAT Gateway, a load
+      balancer or a cluster would each introduce a charge that accrues whether or not
+      anything uses the system, which is the pattern this project exists to warn about.
+    when:
+      added_resource_types:
+        - AWS::EC2::Instance
+        - AWS::EC2::NatGateway
+        - AWS::ElasticLoadBalancingV2::LoadBalancer
+        - AWS::EKS::Cluster
+        - AWS::RDS::DBInstance
+    action: BLOCK
+    severity: CRITICAL
+
+  - id: untagged-resources
+    description: New resources must carry ownership tags
+    when:
+      required_tags_missing:
+        - Environment
+        - Application
+    action: WARN
+    severity: LOW

@@ -173,6 +173,17 @@ def run_analysis(request: AnalysisRequest) -> AnalysisArtifact:
     )
     decision = build_decision(evaluations, budget_evaluations, cost.totals, cost.unknowns)
 
+    # An override nobody's resources match is a decision that never took effect.
+    identities = [
+        (resource.key.logical_id, resource.construct_path)
+        for graph in (baseline, proposed)
+        for resource in graph.resources
+    ]
+    warnings = tuple(
+        f"usage override {key!r} matched no resource in this change"
+        for key in usage.unmatched_overrides(identities)
+    )
+
     metadata = provider.catalog_metadata()
     artifact = AnalysisArtifact(
         tool_version=request.tool_version,
@@ -196,6 +207,7 @@ def run_analysis(request: AnalysisRequest) -> AnalysisArtifact:
         changes=ChangeSummary.of(changes),
         decision=decision,
         cost=cost,
+        warnings=warnings,
     )
 
     problems = reconcile_artifact(artifact)

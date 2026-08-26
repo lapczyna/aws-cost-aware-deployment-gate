@@ -43,7 +43,8 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 12 | Deterministic demo scenarios | `4eb6e63`, packaged in `a5178e4` |
 | 13 | CDK integration | `50cc39e` |
 | 14 | GitHub pull-request integration | `c35aea2` |
-| 15 | Approval and deployment safeguards | *(recorded at commit time)* |
+| 15 | Approval and deployment safeguards | `1214314` |
+| 16 | Optional serverless AWS infrastructure (synth only) | *(recorded at commit time)* |
 
 ## Current state of the repository
 
@@ -232,9 +233,13 @@ tool version, so re-running the analysis does not revoke an approval. A `BLOCK` 
 never approvable. `.github/workflows/deploy-example.yml` shows the ordering
 (analyse → protected environment → verify → deploy) and is **inert by construction**.
 
+`infrastructure/` (Phase 16) — a three-stack CDK app, **synthesised and never
+deployed**. Its committed templates are analysed by the gate itself
+(`tests/e2e/test_infrastructure.py`), which is what found the two defects below. Costs
+$0.21/month with **$0.00 fixed**; see `docs/infrastructure.md`.
+
 Still absent:
-`recommendations/`, `observability/`, `infrastructure/`, and the AWS Price List
-adapter.
+`recommendations/`, `observability/`, and the AWS Price List adapter.
 
 ## Environment facts that affect implementation
 
@@ -406,7 +411,25 @@ adapter.
     *skipped* when no approval was required, and a skipped dependency would otherwise
     skip the deployment. The condition must then explicitly allow only `success` or
     `skipped`, or a *failed* approval would let the deployment through.
-51. `git checkout -- <path>` silently does nothing for an **untracked** file. When
+51. **Per-resource usage overrides silently did not apply to CDK resources.** They
+    are keyed by logical ID, and CDK appends a hash of the construct path to every
+    logical ID, so an override for `RefreshCatalog` never matched `RefreshCatalog6FFEA4AA`
+    — and failed silently, leaving the author with an unknown cost and no hint their
+    config was ignored. `UsageProfileConfig.override_for` now also matches the construct
+    path and the construct id (`Resource`/`Default` segments skipped, since those are
+    CDK's own naming for the L1 inside an L2).
+52. **A usage profile is scoped by environment, not by application.** Analysing this
+    repository's own infrastructure under the payments production profile produced
+    $53/month, almost all of it CloudWatch Logs at an assumed 100 GB — for a Lambda that
+    runs four times a month. The tool was right; the config was wrong. A second workload
+    needs its own config (`infrastructure/cost-gate.yaml`).
+53. **A warning that fires on everything teaches people to skip warnings.** The
+    unmatched-override advisory initially rendered into the pull-request comment and
+    then appeared on *every* scenario, because a shared config normally carries
+    overrides for resources absent from any one change. It now goes to the console and
+    the JSON artifact only — the surfaces where someone debugging a config is already
+    looking. The PR comment is scarce, high-attention space.
+54. `git checkout -- <path>` silently does nothing for an **untracked** file. When
     probing whether a test really fails, revert the probe explicitly and re-check.
 
 ## Verification commands
@@ -463,31 +486,32 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
 
 ## Exact recommended next action
 
-**Phase 16 — optional serverless AWS infrastructure, synth only.**
+**Phase 17 — comparing predicted and observed cost.** The last substantial feature.
 
-> **The user's standing rule: do not deploy any AWS resources without explicit
-> approval.** Phase 16 is synthesis and unit assertions only. Nothing in this
-> repository obtains AWS credentials, and `scripts/check_workflows.py` now enforces
-> that. Do not add a deployment workflow, an OIDC role, or a bootstrap step.
+* A `PredictionRecord`: what was estimated, for which change, at which fingerprint
+  (`approvals.decision_fingerprint` already produces a stable identity for exactly
+  this). `infrastructure/` already models the DynamoDB table it would live in.
+* A **deterministic demo feedback provider** first, so the accuracy machinery can be
+  tested offline like everything else. A Cost Explorer adapter second, and only behind
+  the same optional-dependency pattern as the Price List adapter.
+* Accuracy metrics that do not overclaim: report the distribution of prediction error,
+  not a single "accuracy percentage".
+* **This must never block anything.** An accuracy figure is feedback for improving
+  estimators, not a gate. Wiring it into a decision would make the tool's own error
+  budget into someone else's deployment failure.
+* Document the attribution caveats honestly and prominently: billing data lags up to
+  24 hours; cost allocation tags only apply from the moment they are activated; shared
+  costs, credits, taxes and Savings Plan amortisation mean an IaC estimate can never
+  equal a line on the bill. `docs/infrastructure.md` and the approval runbook already
+  say versions of this — reuse the wording rather than inventing new claims.
 
-* `infrastructure/` — a CDK app in Python: S3 for pricing snapshots, a DynamoDB
-  on-demand table for prediction history, EventBridge Scheduler plus a Lambda to
-  refresh the catalog, an AWS Budgets resource, and CloudWatch alarms.
-* `aws_cdk.assertions.Template` tests: the resources exist, the bucket blocks public
-  access and is encrypted, the table is on-demand, the Lambda has least-privilege IAM.
-* **Self-analysis**: run the gate over the synthesised output and commit the report.
-  An infrastructure-cost tool that cannot price its own infrastructure is a poor
-  advertisement, and it will find gaps in coverage.
-* Document the estimated monthly cost and a teardown procedure, even though nothing is
-  deployed — a reader should be able to see what it *would* cost.
+Things Phase 16 established that Phase 17 depends on:
 
-Things Phase 15 established that Phase 16 depends on:
+* `AnalysisArtifact.warnings` exists for advisories that are about the configuration
+  rather than the change, and is deliberately kept out of the pull-request comment.
+* `dev.py synth` regenerates `examples/cdk/synthesized/`, the CDK demo scenario and
+  `infrastructure/synthesized/` together, so they cannot drift.
+* `tests/fixtures/empty-stacks/` is the "before" snapshot for analysing infrastructure
+  that does not exist yet.
 
-* `dev.py synth` already regenerates `examples/cdk/synthesized/`; extend it for
-  `infrastructure/` rather than adding a second mechanism.
-* `-m cdk` is the opt-in marker for anything needing Node, and `addopts` excludes it by
-  default. `aws-cdk-lib` is in the `[cdk]` extra.
-* `tests/unit/test_workflows.py::TestNothingDeploysByAccident` is the guard. Extend it
-  if `infrastructure/` gains anything that looks deployable.
-
-Commit message: `infra: add optional serverless aws integration`
+Commit message: `feat: compare predicted and observed cloud costs`

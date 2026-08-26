@@ -131,6 +131,20 @@ class AnalysisArtifact(BaseModel):
     decision: GateDecision
     cost: CostReport
 
+    warnings: tuple[str, ...] = ()
+    """Advisories about the configuration rather than the change.
+
+    A usage override that matched no resource belongs here: it means someone recorded a
+    decision that had no effect, and silently ignoring it is how a team comes to believe
+    their assumptions are configured when they are not.
+
+    Deliberately **not** rendered into the pull-request comment. A configuration shared
+    across several stacks will normally carry overrides for resources absent from any
+    one change, so surfacing this on every pull request would be noise — and a warning
+    that fires on everything teaches people to skip the warnings. It appears in the
+    console output and in the JSON artifact, which is where someone debugging their
+    configuration is already looking."""
+
     @property
     def confidence(self) -> Confidence:
         """The report's overall confidence."""

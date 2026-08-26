@@ -910,6 +910,9 @@
     ],
     "region": "us-east-1",
     "currency": "USD"
-  }
+  },
+  "warnings": [
+    "usage override 'AnalyticsFunction' matched no resource in this change"
+  ]
 }
 

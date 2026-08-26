@@ -4,7 +4,7 @@ A CI/CD gate that estimates the monthly AWS cost impact of an infrastructure cha
 is deployed**, evaluates it against version-controlled budgets and policies, and returns an
 explainable decision on the pull request.
 
-> **Project status: Phase 15 — approvals are bound to a fingerprint of the change they approved, so an approval granted for a small change cannot be spent on a large one.**
+> **Project status: Phase 16 — the gate now analyses its own optional infrastructure, which costs $0.21/month with no fixed component. Nothing is deployed; there is no AWS account behind this repository.**
 > This README is a skeleton. Sections marked *(pending)* are completed in later phases, and all
 > sample reports will be generated artifacts rather than hand-written illustrations.
 
@@ -237,6 +237,25 @@ routed around. It changes the moment the infrastructure, the cost or the unknown
 blocking label. Changing the policy is the honest route, and it leaves a diff.
 
 See [the approval runbook](docs/runbooks/cost-approval.md).
+
+## The gate analysing its own infrastructure
+
+`infrastructure/` is a CDK app that is **synthesised, never deployed** — no account, no
+credentials, and a check that fails the build if a workflow tries to obtain any.
+
+Running the gate over it is the cheapest way to find out whether its advice is any good:
+
+```bash
+cost-gate analyze   --baseline tests/fixtures/empty-stacks   --proposed infrastructure/synthesized   --config infrastructure/cost-gate.yaml
+```
+
+**$0.21/month, $0.00 of it fixed.** Every charge is per-request or per-gigabyte, so
+nothing accrues while idle. Five resource types are unpriced and reported as visible
+unknowns, which makes that figure a lower bound.
+
+It also found two real defects — a usage profile borrowed from another workload, and
+per-resource overrides that silently never matched CDK's hashed logical IDs. Both are
+written up in [infrastructure](docs/infrastructure.md).
 
 ## Limitations
 

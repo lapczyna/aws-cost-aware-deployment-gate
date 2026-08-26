@@ -1,0 +1,297 @@
+{
+ "Resources": {
+  "RefreshLogsE2CBF500": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "RetentionInDays": 30,
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "cost-gate"
+     },
+     {
+      "Key": "Environment",
+      "Value": "production"
+     },
+     {
+      "Key": "Team",
+      "Value": "payments-platform"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "CostGateRefresh/RefreshLogs/Resource"
+   }
+  },
+  "RefreshCatalogServiceRole5437681A": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "cost-gate"
+     },
+     {
+      "Key": "Environment",
+      "Value": "production"
+     },
+     {
+      "Key": "Team",
+      "Value": "payments-platform"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "CostGateRefresh/RefreshCatalog/ServiceRole/Resource"
+   }
+  },
+  "RefreshCatalogServiceRoleDefaultPolicyFC96FFAE": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "pricing:GetProducts",
+        "pricing:DescribeServices"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": "s3:PutObject",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Fn::GetStackOutput": {
+            "StackName": "CostGateStorage",
+            "Region": "us-east-1",
+            "OutputName": "PublishOutputFnGetAttPricingSnapshots7CE389F8Arn009EC7A2"
+           }
+          },
+          "/catalogs/*"
+         ]
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "RefreshCatalogServiceRoleDefaultPolicyFC96FFAE",
+    "Roles": [
+     {
+      "Ref": "RefreshCatalogServiceRole5437681A"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "CostGateRefresh/RefreshCatalog/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "RefreshCatalog6FFEA4AA": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "ZipFile": "def handler(event, context):\n    \"\"\"Placeholder. The refresh logic lives in cost_gate.pricing.\"\"\"\n    raise NotImplementedError(\n        \"deploy this with the cost-gate package bundled as a layer\"\n    )\n"
+    },
+    "Environment": {
+     "Variables": {
+      "SNAPSHOT_BUCKET": {
+       "Fn::GetStackOutput": {
+        "StackName": "CostGateStorage",
+        "Region": "us-east-1",
+        "OutputName": "PublishOutputRefPricingSnapshots7CE389F851715017"
+       }
+      },
+      "SNAPSHOT_PREFIX": "catalogs/"
+     }
+    },
+    "Handler": "index.handler",
+    "LoggingConfig": {
+     "LogGroup": {
+      "Ref": "RefreshLogsE2CBF500"
+     }
+    },
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "RefreshCatalogServiceRole5437681A",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "cost-gate"
+     },
+     {
+      "Key": "Environment",
+      "Value": "production"
+     },
+     {
+      "Key": "Team",
+      "Value": "payments-platform"
+     }
+    ],
+    "Timeout": 300
+   },
+   "DependsOn": [
+    "RefreshCatalogServiceRoleDefaultPolicyFC96FFAE",
+    "RefreshCatalogServiceRole5437681A"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "CostGateRefresh/RefreshCatalog/Resource"
+   }
+  },
+  "WeeklyRefresh5CDDFF8B": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "ScheduleExpression": "cron(0 3 ? * MON *)",
+    "State": "ENABLED",
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "cost-gate"
+     },
+     {
+      "Key": "Environment",
+      "Value": "production"
+     },
+     {
+      "Key": "Team",
+      "Value": "payments-platform"
+     }
+    ],
+    "Targets": [
+     {
+      "Arn": {
+       "Fn::GetAtt": [
+        "RefreshCatalog6FFEA4AA",
+        "Arn"
+       ]
+      },
+      "Id": "Target0",
+      "RetryPolicy": {
+       "MaximumRetryAttempts": 2
+      }
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "CostGateRefresh/WeeklyRefresh/Resource"
+   }
+  },
+  "WeeklyRefreshAllowEventRuleCostGateRefreshRefreshCatalog6D1B5B9170DE0389": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "RefreshCatalog6FFEA4AA",
+      "Arn"
+     ]
+    },
+    "Principal": "events.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "WeeklyRefresh5CDDFF8B",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "CostGateRefresh/WeeklyRefresh/AllowEventRuleCostGateRefreshRefreshCatalog6D1B5B91"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/02KQQrCMBAA39J7utoIfkDQi4dSHyBpGuvaZFeaxFJC/i6tCp5mYEaC3EuoCjX5UndDabGFdAlKD0JN/pos9x7SmfvTyPEpDjf6eRZWubZTkI6RdECmpf57bUaH3iNTFqgcpIatWcLKmi3qef1Wy8K8DAUPqYnfLVqTcxb1HO5Mmx1UEqpt8fCI5RgpoDPQfPgG6VsMgscAAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "CostGateRefresh/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "ExportsOutputRefRefreshCatalog6FFEA4AA09143941": {
+   "Value": {
+    "Ref": "RefreshCatalog6FFEA4AA"
+   },
+   "Export": {
+    "Name": "CostGateRefresh:ExportsOutputRefRefreshCatalog6FFEA4AA09143941"
+   }
+  },
+  "PublishOutputRefRefreshCatalog6FFEA4AAE6806D3E": {
+   "Value": {
+    "Ref": "RefreshCatalog6FFEA4AA"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}
