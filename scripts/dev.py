@@ -200,10 +200,43 @@ def task_analyze(extra: Sequence[str]) -> None:
 
 
 def task_synth(extra: Sequence[str]) -> None:
-    """Synthesise the optional CDK infrastructure (added in Phase 16)."""
+    """Regenerate the committed CDK templates from the example app.
+
+    These are checked in so the default test suite needs neither Node nor aws-cdk-lib.
+    Regenerating them is therefore a deliberate act, and the resulting diff is what
+    gets reviewed. `dev.py test-cdk` is what notices when they have drifted.
+    """
     if shutil.which("cdk") is None:
-        raise TaskError("cdk not found on PATH")
-    run("cdk", "synth", "--app", "python infrastructure/app.py", *extra)
+        raise TaskError(
+            "cdk not found on PATH. Install it with `npm install -g aws-cdk`, and the "
+            "Python library with `pip install -e .[cdk]`"
+        )
+    for flag, name in (("false", "baseline"), ("true", "proposed")):
+        run(
+            PY,
+            "-m",
+            "cost_gate.cli.main",
+            "cdk",
+            "snapshot",
+            "--app",
+            "examples/cdk",
+            "--context",
+            f"growth={flag}",
+            "--out",
+            f"examples/cdk/synthesized/{name}",
+            "--force",
+            *extra,
+        )
+
+    # The demo scenario uses the same templates. Copying rather than pointing at them
+    # keeps a scenario self-contained, and doing it here means the two copies cannot
+    # drift apart without someone deliberately editing generated files.
+    scenario = ROOT / "examples" / "scenarios" / "cdk-multi-stack-growth"
+    for name in ("baseline", "proposed"):
+        target = scenario / name
+        shutil.rmtree(target, ignore_errors=True)
+        shutil.copytree(ROOT / "examples" / "cdk" / "synthesized" / name, target)
+        print(f"{DIM}synced {target.relative_to(ROOT)}{OFF}")
 
 
 def task_clean(extra: Sequence[str]) -> None:

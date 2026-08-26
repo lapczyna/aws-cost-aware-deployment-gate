@@ -40,7 +40,8 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 9 | Budget and policy engine | `ae602a8` |
 | 10 | FinOps recommendation engine | **deferred** — nothing depends on it |
 | 11 | Reporting, CLI and the end-to-end pipeline | `617ce44`, fixed in `902ec6c` |
-| 12 | Deterministic demo scenarios | *(recorded at commit time)* |
+| 12 | Deterministic demo scenarios | `4eb6e63`, packaged in `a5178e4` |
+| 13 | CDK integration | *(recorded at commit time)* |
 
 ## Current state of the repository
 
@@ -205,6 +206,14 @@ agrees with itself. Golden reports under `tests/golden/scenarios/` are the other
 mechanism, and they do the opposite job — they catch unintended *change*, not wrong
 *behaviour*.
 
+`adapters/git.py`, `adapters/cdk.py`, `cli/cdk.py` (Phase 13). `cost-gate cdk
+snapshot` synthesises a CDK app into templates, optionally at another Git revision via
+a temporary `git worktree` so the working tree is never touched. **Synthesis executes
+the app's code**, so nothing on the default path calls it and it must never share a job
+with credentials. `examples/cdk/` is a two-stack app whose `growth` context flag selects
+baseline from proposal; its output is committed under `examples/cdk/synthesized/` and
+mirrored into the `cdk-multi-stack-growth` scenario by `dev.py synth`.
+
 Still absent:
 `recommendations/`, `observability/`, `infrastructure/`, the AWS Price List adapter,
 and the GitHub workflows.
@@ -328,7 +337,29 @@ and the GitHub workflows.
 36. A configuration shipped inside a package must not name paths by relative traversal:
     `../../pricing-data` resolves in a checkout and not in an installed wheel. Omit the
     setting and let it fall back to the bundled default, which is right in both.
-37. `git checkout -- <path>` silently does nothing for an **untracked** file. When
+37. **A ref name is an argument injection vector.** Git reads any argument starting
+    with `-` as an option, so a branch called `--upload-pack=...` is not a branch.
+    `adapters/git.REF_PATTERN` validates before anything reaches Git. It deliberately
+    accepts revision *expressions* (`HEAD~1`, `origin/main^2`): validation strict enough
+    to refuse those teaches people to work around the tool, which is its own problem.
+38. A CDK stack with a concrete account and region makes the CLI **look up** the
+    region's availability zones, which needs credentials. `examples/cdk/cdk.json` pins
+    them as context. That is the `cdk.context.json` problem in miniature: cached context
+    makes synthesis reproducible, and stale cached context makes it reproducibly wrong.
+39. `AWS::CDK::Metadata` appears in every synthesised stack. Without it in
+    `COST_FREE_TYPES` every CDK report opens with noise in the unknowns section, which
+    is how a reader learns to skip that section.
+40. Marker-based opt-outs must live in `addopts`, not only in `scripts/dev.py`. The
+    `cdk` tests ran on a bare `pytest` and took 2.5 minutes; `-m "not cdk"` is now in
+    pyproject so both entry points agree.
+41. Bandit's `# nosec` must be on the *flagged line*, not the line above, and ruff's
+    `# noqa` does not suppress it - both markers are needed. `B404` (importing
+    subprocess at all) is skipped globally because it says nothing about usage; `B603`
+    stays active and is justified at each call site.
+42. Scenarios can hold `baseline/` and `proposed/` **directories** as well as single
+    files. A multi-stack CDK change cannot be expressed as one file without losing the
+    per-stack structure that makes it worth demonstrating (`demo.loader.snapshot_path`).
+43. `git checkout -- <path>` silently does nothing for an **untracked** file. When
     probing whether a test really fails, revert the probe explicitly and re-check.
 
 ## Verification commands
@@ -385,28 +416,27 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
 
 ## Exact recommended next action
 
-**Phase 13 — CDK integration.** Two scenarios already demonstrate the *matching* problem
-CDK creates (`cdk-hash-rename`, `construct-path-rename`) using hand-written templates.
-What is missing is reading a real CDK app.
+**Phase 14 — GitHub pull-request integration.** Everything needed to produce a comment
+exists; nothing posts one.
 
-* `cost-gate cdk snapshot --app <dir> --ref <git-ref> --out <dir>`: create a temporary
-  `git worktree`, run `cdk synth --json`, copy the templates out, remove the worktree.
-  Multi-stack aware.
-* An example CDK app under `examples/cdk/`, with **pre-synthesised** templates checked
-  in so the default test suite stays fast, hermetic and Node-free. Real `cdk synth` runs
-  only under the opt-in `-m cdk` marker (ADR/plan decision D8).
-* Document the limitations honestly in `docs/domain-model.md`: asset hashes,
-  `cdk.context.json` drift, cross-stack `ImportValue`.
+* `.github/actions/cost-gate/action.yml` — a composite action wrapping the CLI.
+* `cost-gate.yml` on `pull_request`: `permissions: {contents: read}`, **no secrets, no
+  OIDC**. Runs the analysis, writes `$GITHUB_STEP_SUMMARY`, uploads `report.json`,
+  `report.md` and the PR number as an artifact. Job status comes from the exit code.
+* `cost-gate-comment.yml` on `workflow_run`: `permissions: {pull-requests: write}`.
+  Downloads the artifact and treats it as **untrusted data** — validate against
+  `schemas/artifact.schema.json`, enforce a size cap, then upsert a single comment keyed
+  by `reporting.markdown.COMMENT_MARKER`. Never checks out or executes PR code.
+* `pull_request_target` is prohibited (ADR 0007). `scripts/check_workflows.py` already
+  enforces this and runs in `dev.py all` — extend it rather than adding a second check.
 
-Things Phase 12 established that Phase 13 depends on:
+Things Phase 13 established that Phase 14 depends on:
 
-* `cost_gate.demo` is the pattern for anything that bundles fixtures: authored under
-  `examples/`, force-included into the wheel at `cost_gate/_data/`, located by a
-  `default_*_path()` helper that prefers the packaged copy.
-* Add new demonstrations as scenarios rather than as bespoke tests. Write the
-  expectation first; if the tool disagrees, establish which of you is wrong before
-  changing either.
-* `python scripts/dev.py demo`, `golden --update` and `docs` are the three regeneration
-  commands. `docs/demo-scenarios.md` is generated, so never edit it by hand.
+* The comment body is `reporting.markdown.render_markdown`, already bounded to
+  `MAX_COMMENT_BYTES` and escaped through `reporting/escaping.py`. Do not build a
+  second renderer in the workflow.
+* `cdk synth` executes PR code, so the synthesising job is exactly the one that must
+  not hold a token. This is the concrete reason for the two-workflow split.
+* Test the comment upsert against a fake API object rather than a live repository.
 
-Commit message: `feat: analyze aws cdk infrastructure changes`
+Commit message: `ci: integrate cost gate with github pull requests`

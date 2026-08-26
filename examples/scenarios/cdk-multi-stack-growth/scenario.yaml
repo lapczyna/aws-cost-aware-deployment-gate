@@ -1,0 +1,27 @@
+version: 1
+id: cdk-multi-stack-growth
+title: A real CDK application growing across two stacks
+demonstrates: >-
+  Everything the other scenarios show by hand, but from templates a real `cdk synth`
+  produced. Two stacks, thirty-seven resources, cross-stack references rendered as
+  Fn::ImportValue, and CDK's own generated resources mixed in with the ones anyone
+  wrote deliberately. Every resource is matched on its construct path rather than its
+  logical ID, which is what stops a CDK rename looking like a delete and a create.
+  It also shows coverage honestly: a real application pulls in Secrets Manager, custom
+  resources and ElastiCache, none of which this version prices, and all of which are
+  reported as unknown rather than quietly left out of the total.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: REQUIRE_APPROVAL
+  exit_code: 10
+  delta: increase
+  unknowns: some
+  matched_policies:
+    - nat-gateway-in-development
+  approver_groups:
+    - platform-architecture

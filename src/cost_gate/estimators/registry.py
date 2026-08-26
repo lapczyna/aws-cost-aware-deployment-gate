@@ -68,6 +68,11 @@ COST_FREE_TYPES: frozenset[str] = frozenset(
         "AWS::Logs::LogStream",
         "AWS::Lambda::Permission",
         "AWS::CloudFormation::WaitConditionHandle",
+        # Synthesis artefacts rather than infrastructure. CDK puts one of these
+        # in every stack it generates, and reporting it as an unknown would put
+        # noise at the top of every CDK report - which is how a reader learns to
+        # skip the unknowns section entirely.
+        "AWS::CDK::Metadata",
     }
 )
 """Types known to carry no charge of their own.

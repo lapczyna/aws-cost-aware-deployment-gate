@@ -13,7 +13,7 @@ from pathlib import Path
 
 from cost_gate.adapters.clock import Clock, FixedClock
 from cost_gate.config import ConfigError, load_config
-from cost_gate.demo.loader import BASELINE_FILENAME, PROPOSED_FILENAME, ScenarioError
+from cost_gate.demo.loader import ScenarioError, snapshot_path
 from cost_gate.demo.models import Direction, Scenario, ScenarioOutcome, UnknownExpectation
 from cost_gate.domain.artifact import AnalysisArtifact
 from cost_gate.domain.enums import GateResult
@@ -71,9 +71,14 @@ def run_scenario(
     except ConfigError as exc:
         raise ScenarioError(f"scenario {scenario.identifier}: {exc.render()}") from exc
 
+    baseline = snapshot_path(directory, "baseline")
+    proposed = snapshot_path(directory, "proposed")
+    if baseline is None or proposed is None:  # pragma: no cover - the loader checks first
+        raise ScenarioError(f"scenario {scenario.identifier} is missing a snapshot")
+
     request = AnalysisRequest(
-        baseline=directory / BASELINE_FILENAME,
-        proposed=directory / PROPOSED_FILENAME,
+        baseline=baseline,
+        proposed=proposed,
         config=config,
         region=scenario.region,
         environment=scenario.environment,

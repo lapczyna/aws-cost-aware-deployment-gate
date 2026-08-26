@@ -19,7 +19,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 10 | FinOps recommendation engine | planned | deferred until after Phase 11 |
 | 11 | Reporting and CLI | done | see git log |
 | 12 | End-to-end demo scenarios | done | see git log |
-| 13 | CDK integration | planned | |
+| 13 | CDK integration | done | see git log |
 | 14 | GitHub pull-request integration | planned | |
 | 15 | Approval and deployment safeguards | planned | |
 | 16 | Optional serverless AWS infrastructure (synth only) | planned | |

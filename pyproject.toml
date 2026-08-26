@@ -31,6 +31,11 @@ dependencies = [
 [project.optional-dependencies]
 # Optional AWS Price List provider. Never required for the default offline path.
 aws = ["boto3>=1.34,<2.0"]
+
+# Only needed to *synthesise* the example CDK app. The tool itself never imports CDK:
+# it consumes synthesised CloudFormation, and the templates are committed under
+# examples/cdk/synthesized/ so the default test suite needs neither this nor Node.
+cdk = ["aws-cdk-lib>=2.150,<3.0", "constructs>=10.3,<11.0"]
 dev = [
     "pytest>=9.0.3,<10.0",
     "pytest-cov>=5.0,<7.0",
@@ -121,7 +126,18 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "D", "ANN", "PLR2004"]   # asserts, docstrings, magic numbers
+"tests/**" = [
+    "S101",     # asserts are the point
+    "D",        # docstrings
+    "ANN",      # annotations
+    "PLR2004",  # magic numbers
+    "S603",     # subprocess: test fixtures build their own git repositories
+    "S607",     # partial executable paths: `git` from PATH is what a developer has
+]
+# Example CDK code should read like the ecosystem it is demonstrating. Idiomatic CDK
+# Python does not annotate **kwargs or document __init__, and making the example
+# unidiomatic to satisfy a linter would teach the wrong thing.
+"examples/cdk/**" = ["D107", "ANN003", "ANN401"]
 "scripts/**" = ["T20", "D"]                     # the dev runner prints by design
 "src/cost_gate/reporting/**" = ["T20"]          # the reporting layer prints by design
 
@@ -164,6 +180,12 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "-ra",
+    # `cdk` tests shell out to a real synth: they need Node, the CDK CLI and the [cdk]
+    # extra, and they take minutes rather than milliseconds. Opt in with `-m cdk`.
+    # Excluded here rather than only in scripts/dev.py so that a bare `pytest` behaves
+    # the same way - a default suite that needs a Node toolchain to test a Python
+    # library is a default suite people will stop running.
+    "-m", "not cdk",
 ]
 markers = [
     "unit: fast, isolated domain tests",
@@ -188,7 +210,14 @@ exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedE
 # Bandit
 # ---------------------------------------------------------------------------
 [tool.bandit]
-exclude_dirs = ["tests", ".venv", "build", "dist"]
+exclude_dirs = ["tests", ".venv", "build", "dist", "examples"]
+
+# B404 fires on `import subprocess` itself, which is not a finding: it says nothing
+# about how the module is used. The two places that use it - adapters/git.py and
+# adapters/cdk.py - are reviewed individually and carry their own justification at the
+# call site, where B603 still applies. Skipping the import-level check keeps those
+# call-site annotations meaningful instead of drowning them in noise.
+skips = ["B404"]
 
 # ---------------------------------------------------------------------------
 # import-linter: mechanically enforce the ports-and-adapters rule (ADR 0001)

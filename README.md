@@ -4,7 +4,7 @@ A CI/CD gate that estimates the monthly AWS cost impact of an infrastructure cha
 is deployed**, evaluates it against version-controlled budgets and policies, and returns an
 explainable decision on the pull request.
 
-> **Project status: Phase 12 — seventeen demonstration scenarios run offline, each declaring by hand what the gate should do with it. CDK input and the GitHub pull-request integration are next.**
+> **Project status: Phase 13 — CDK applications can be snapshotted and compared, with resources matched on construct path so a rename is not mistaken for a delete and a create. The GitHub pull-request integration is next.**
 > This README is a skeleton. Sections marked *(pending)* are completed in later phases, and all
 > sample reports will be generated artifacts rather than hand-written illustrations.
 
@@ -127,6 +127,30 @@ unpriceable database blocking production, a CDK rename that must not look like a
 and a create, a change that costs nothing at all. Every scenario states **by hand** what
 the gate ought to do with it, so the suite catches wrong behaviour rather than merely
 recording it. See [demo scenarios](docs/demo-scenarios.md).
+
+## Analysing a CDK application
+
+CDK derives logical IDs from construct paths plus a content hash, so renaming a
+construct changes every ID beneath it without changing any infrastructure. Matching on
+IDs alone would report a delete and a create and invent a cost swing out of nothing;
+resources are matched on `aws:cdk:path` instead.
+
+```bash
+npm install -g aws-cdk
+pip install -e ".[cdk]"
+
+cost-gate cdk snapshot --app examples/cdk --ref origin/main --out build/baseline
+cost-gate cdk snapshot --app examples/cdk                   --out build/proposed
+cost-gate analyze --baseline build/baseline --proposed build/proposed
+```
+
+The baseline is synthesised inside a temporary `git worktree`, so your checkout, index
+and branch are untouched.
+
+> **`cdk synth` executes the application's code.** On a pull request that is arbitrary
+> code execution by whoever opened it, so it must never run in a job that holds
+> credentials. See [security](docs/security.md) and the limitations in
+> [domain model](docs/domain-model.md#10-cdk-and-what-analysing-it-cannot-tell-you).
 
 ## Supported AWS resources
 

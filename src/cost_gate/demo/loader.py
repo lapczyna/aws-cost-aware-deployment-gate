@@ -17,18 +17,23 @@ from cost_gate.config.loader import load_model
 from cost_gate.demo.models import Scenario
 
 __all__ = [
+    "BASELINE_DIRECTORY",
     "BASELINE_FILENAME",
     "MANIFEST_FILENAME",
+    "PROPOSED_DIRECTORY",
     "PROPOSED_FILENAME",
     "ScenarioError",
     "default_scenario_path",
     "load_scenario",
     "load_scenarios",
+    "snapshot_path",
 ]
 
 MANIFEST_FILENAME: Final = "scenario.yaml"
 BASELINE_FILENAME: Final = "baseline.yaml"
 PROPOSED_FILENAME: Final = "proposed.yaml"
+BASELINE_DIRECTORY: Final = "baseline"
+PROPOSED_DIRECTORY: Final = "proposed"
 
 MAX_SCENARIOS: Final = 200
 """A directory with more than this is a mistake, not a demo suite."""
@@ -76,10 +81,32 @@ def load_scenario(directory: Path) -> Scenario:
             f"scenario in {directory} declares id {scenario.identifier!r}, "
             f"which does not match its directory name"
         )
-    for filename in (BASELINE_FILENAME, PROPOSED_FILENAME):
-        if not (directory / filename).is_file():
-            raise ScenarioError(f"scenario {scenario.identifier} has no {filename}")
+    for side in ("baseline", "proposed"):
+        if snapshot_path(directory, side) is None:
+            raise ScenarioError(
+                f"scenario {scenario.identifier} has neither {side}.yaml nor a {side}/ directory"
+            )
     return scenario
+
+
+def snapshot_path(directory: Path, side: str) -> Path | None:
+    """Locate one side of a scenario, as a file or a directory.
+
+    A single template covers most scenarios, but a CDK app synthesises to one template
+    per stack, and matching is scoped per stack — so a multi-stack change cannot be
+    expressed as a single file without losing exactly the structure that makes it worth
+    demonstrating. Both shapes load through the same ``load_graph``.
+
+    Returns:
+        The file or directory, or ``None`` if neither exists.
+    """
+    single = directory / f"{side}.yaml"
+    if single.is_file():
+        return single
+    multiple = directory / side
+    if multiple.is_dir():
+        return multiple
+    return None
 
 
 def load_scenarios(root: Path | None = None) -> list[tuple[Scenario, Path]]:

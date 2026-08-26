@@ -54,6 +54,7 @@ wrong route is not the same as being right, and it will not stay right.
 | [`always-on-versus-scheduled`](#always-on-versus-scheduled) | REQUIRE_APPROVAL | 10 | Two resources in one change, billed on different clocks |
 | [`budget-exhausted`](#budget-exhausted) | BLOCK | 20 | A change that does not fit in the budget |
 | [`cdk-hash-rename`](#cdk-hash-rename) | PASS | 0 | A CDK logical ID whose hash suffix changed |
+| [`cdk-multi-stack-growth`](#cdk-multi-stack-growth) | REQUIRE_APPROVAL | 10 | A real CDK application growing across two stacks |
 | [`construct-path-rename`](#construct-path-rename) | PASS | 0 | A renamed resource that CDK can still identify |
 | [`database-decommission`](#database-decommission) | PASS | 0 | Deleting a database, for a negative delta |
 | [`free-resources`](#free-resources) | PASS | 0 | Resources that genuinely cost nothing |
@@ -109,6 +110,21 @@ CDK embeds a content hash in logical IDs, so editing a property renames the reso
 - Environment: `development`
 
 [Generated report](../tests/golden/scenarios/cdk-hash-rename.md)
+
+### cdk-multi-stack-growth
+
+**A real CDK application growing across two stacks**
+
+Everything the other scenarios show by hand, but from templates a real `cdk synth` produced. Two stacks, thirty-seven resources, cross-stack references rendered as Fn::ImportValue, and CDK's own generated resources mixed in with the ones anyone wrote deliberately. Every resource is matched on its construct path rather than its logical ID, which is what stops a CDK rename looking like a delete and a create. It also shows coverage honestly: a real application pulls in Secrets Manager, custom resources and ElastiCache, none of which this version prices, and all of which are reported as unknown rather than quietly left out of the total.
+
+- Expects **REQUIRE_APPROVAL**, exit code `10`
+- Estimated monthly cost: increase
+- Includes at least one cost the tool cannot establish
+- Policies that must fire: `nat-gateway-in-development`
+- Approval required from: `platform-architecture`
+- Environment: `development`
+
+[Generated report](../tests/golden/scenarios/cdk-multi-stack-growth.md)
 
 ### construct-path-rename
 

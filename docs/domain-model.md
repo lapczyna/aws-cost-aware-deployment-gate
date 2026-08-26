@@ -298,3 +298,60 @@ These terms are used precisely throughout the codebase and reports:
 * **Showback vs chargeback** — this tool supports showback (attributing estimated cost to an
   application/team via `ResourceContext`). Chargeback is an accounting process it does not
   attempt.
+
+## 10. CDK, and what analysing it cannot tell you
+
+CDK is the common case in practice, and it is also where a cost tool is easiest to
+mislead. This section is the honest account of what Phase 13 does and does not achieve.
+
+### Synthesis is code execution
+
+`cdk synth` does not parse an app; it *runs* it. Anything the app can do at import time,
+it does — read files, open sockets, spawn processes. On a pull request that is arbitrary
+code execution on behalf of whoever opened it.
+
+Three consequences, all deliberate:
+
+* nothing on the default path synthesises. `cost-gate analyze` reads templates that
+  already exist, and `cost-gate cdk snapshot` is a separate, explicit command;
+* synthesis must never share a job with credentials. That is the reason for the
+  workflow split in [security](security.md), and the reason `pull_request_target` is
+  prohibited — it would hand a write token to exactly this;
+* the environment is trimmed to an allowlist rather than inherited, so a synth cannot
+  pick up `AWS_*` variables that happen to be present.
+
+### Logical IDs move; construct paths do not
+
+CDK derives a logical ID from the construct path plus a hash. Rename a construct and
+every logical ID beneath it changes, even though the infrastructure did not. Matching on
+logical IDs alone would report a delete and a create, and invent a large cost swing out
+of nothing.
+
+Resources are therefore matched on `Metadata."aws:cdk:path"` first (see ADR 0004). On
+the example app, all 21 matched resources pair by construct path. The hash-suffix
+heuristic exists only for templates that carry no path metadata, and anything it matches
+is labelled `LOW` confidence and surfaced in the report.
+
+### What the estimate cannot see
+
+| Limitation | Consequence |
+|---|---|
+| **`cdk.context.json` drift** | Cached context makes synthesis reproducible; stale cached context makes it reproducibly *wrong*. Availability zones, AMI IDs and VPC lookups are all resolved at synth time from whatever the cache holds. An estimate inherits that silently. |
+| **Asset hashes** | Lambda and container assets hash their contents into logical IDs and S3 keys. A code-only change alters the template without altering any cost, and appears as a modification. |
+| **Cross-stack references** | Rendered as `Fn::ImportValue`. The exporting stack is not part of the analysis, so the value is unresolvable and the cost that depends on it is reported as unknown. This is correct, and it means multi-stack applications produce more unknowns than single-stack ones. |
+| **Generated resources** | A real app pulls in resources nobody wrote: Secrets Manager secrets, custom resources backing VPC restrictions, log retention Lambdas. Some cost money. They are reported as unknown rather than omitted. |
+| **Environment-agnostic stacks** | A stack without an explicit account and region synthesises with `Ref: AWS::Region` in place of a region. Region-dependent pricing cannot be resolved, so those costs are unknown. |
+| **Deploy-time behaviour** | Custom resources and `Fn::If` on deploy-time conditions decide at deployment what exists. A template is the plan, not the outcome. |
+
+None of these is a defect to be fixed by guessing harder. They are the boundary of what a
+template can tell you, and the tool's job is to say where that boundary falls rather than
+to paper over it.
+
+### The example application
+
+`examples/cdk/` is a two-stack app whose `growth` context flag selects between the
+baseline and the proposal, so both are built from *the same constructs* — two separate
+apps would produce two unrelated sets of logical IDs and demonstrate nothing about
+matching. Its synthesised output is committed under `examples/cdk/synthesized/` so the
+default test suite needs neither Node nor `aws-cdk-lib`; `dev.py test-cdk` runs a real
+synth and fails if the committed templates have drifted from what the app produces.
