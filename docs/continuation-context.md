@@ -322,7 +322,13 @@ and the GitHub workflows.
     cluster unpriceable. An unresolvable `DBInstanceClass` does make an RDS instance
     unpriceable - while its storage stays priced, which is a better demonstration of
     partial knowledge than the one originally planned.
-35. `git checkout -- <path>` silently does nothing for an **untracked** file. When
+35. **A forced include must exist in the sdist.** The wheel is built from the sdist
+    in CI, so `[tool.hatch.build.targets.wheel.force-include]` fails on any directory
+    the sdist's `include` list omits. Adding data to the wheel means adding it to both.
+36. A configuration shipped inside a package must not name paths by relative traversal:
+    `../../pricing-data` resolves in a checkout and not in an installed wheel. Omit the
+    setting and let it fall back to the bundled default, which is right in both.
+37. `git checkout -- <path>` silently does nothing for an **untracked** file. When
     probing whether a test really fails, revert the probe explicitly and re-check.
 
 ## Verification commands

@@ -65,7 +65,17 @@ packages = ["src/cost_gate"]
 "examples/config" = "cost_gate/_data/config"
 
 [tool.hatch.build.targets.sdist]
-include = ["src/", "tests/", "pricing-data/", "schemas/", "docs/", "README.md", "LICENSE"]
+include = [
+    "src/",
+    "tests/",
+    "pricing-data/",
+    "examples/",
+    "schemas/",
+    "docs/",
+    "scripts/",
+    "README.md",
+    "LICENSE",
+]
 
 # ---------------------------------------------------------------------------
 # Ruff

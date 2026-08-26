@@ -28,5 +28,8 @@ pricing:
   # without AWS credentials. `chain` must be requested explicitly: an implicit
   # fallback would let a failed lookup quietly become a stale price (ADR 0005).
   provider: fixtures
-  catalog: ../../pricing-data
+
+  # No `catalog` here on purpose. Omitting it means the bundled catalog, which
+  # resolves correctly both from a source checkout and from an installed wheel,
+  # whereas a relative path only works from one of them.
   ttl_hours: 24
