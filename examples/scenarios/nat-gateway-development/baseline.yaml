@@ -1,0 +1,14 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: A private subnet with nothing that reaches the internet.
+
+Resources:
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: vpc-0demo00000000000
+      CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

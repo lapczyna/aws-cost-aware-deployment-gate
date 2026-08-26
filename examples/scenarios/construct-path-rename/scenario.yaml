@@ -1,0 +1,20 @@
+version: 1
+id: construct-path-rename
+title: A renamed resource that CDK can still identify
+demonstrates: >-
+  The same underlying resource under a different logical ID, matched on its construct
+  path rather than its name. This is the reliable version of the heuristic in cdk-
+  hash-rename: the path is stable across the change, so the match is certain rather
+  than guessed, and the report shows a modification instead of a phantom delete and
+  create.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: PASS
+  exit_code: 0
+  delta: increase
+  unknowns: none

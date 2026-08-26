@@ -163,8 +163,21 @@ def task_build(extra: Sequence[str]) -> None:
 
 
 def task_demo(extra: Sequence[str]) -> None:
-    """Run the deterministic demo scenarios (added in Phase 12)."""
-    run(PY, "-m", "cost_gate.cli.main", "demo", *extra, allow_fail=True)
+    """Run the deterministic demo scenarios.
+
+    Not `allow_fail`: a scenario that stops behaving as its author declared is a
+    failure of this task, which is the entire reason the scenarios exist.
+    """
+    run(PY, "-m", "cost_gate.cli.main", "demo", *extra)
+
+
+def task_docs(extra: Sequence[str]) -> None:
+    """Regenerate the documentation that is derived from the code.
+
+    `docs/demo-scenarios.md` lists the scenarios that exist rather than the ones
+    someone remembered to write down, which is the only way that list stays true.
+    """
+    run(PY, str(ROOT / "scripts" / "generate_docs.py"), *extra)
 
 
 def task_golden(extra: Sequence[str]) -> None:
@@ -246,6 +259,7 @@ TASKS: dict[str, Callable[[Sequence[str]], None]] = {
     "check-workflows": task_check_workflows,
     "build": task_build,
     "demo": task_demo,
+    "docs": task_docs,
     "golden": task_golden,
     "analyze": task_analyze,
     "synth": task_synth,

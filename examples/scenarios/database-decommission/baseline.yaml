@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: A database and its application server.
+
+Resources:
+  ApplicationServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.small
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments
+  ReportingDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: db.m5.large
+      Engine: postgres
+      AllocatedStorage: 200
+      StorageType: gp3
+      BackupRetentionPeriod: 0
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

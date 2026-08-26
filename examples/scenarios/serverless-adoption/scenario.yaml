@@ -1,0 +1,19 @@
+version: 1
+id: serverless-adoption
+title: A serverless stack, where cost depends on traffic
+demonstrates: >-
+  Fixed costs can be estimated from a template; usage-based ones cannot. A function,
+  an API and a table have almost no cost until they are used, and the tool has no
+  defensible way to guess how much they will be. It says so, rather than presenting a
+  confident number built on an invented request volume.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: PASS
+  exit_code: 0
+  delta: increase
+  unknowns: some

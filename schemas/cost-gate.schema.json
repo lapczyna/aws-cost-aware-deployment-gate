@@ -25,7 +25,7 @@
           "title": "Cache Dir"
         },
         "catalog": {
-          "default": "pricing-data",
+          "default": "",
           "title": "Catalog",
           "type": "string"
         },

@@ -1,0 +1,15 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: A worker, as first synthesised.
+
+Resources:
+  WorkerAAAA1111:
+    Type: AWS::EC2::Instance
+    Metadata:
+      "aws:cdk:path": PaymentsStack/Worker/Resource
+    Properties:
+      InstanceType: t3.small
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

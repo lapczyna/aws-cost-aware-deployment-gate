@@ -19,6 +19,7 @@ import pytest
 
 from cost_gate.adapters.clock import FixedClock
 from cost_gate.config import load_config
+from cost_gate.demo import load_scenarios, run_scenario
 from cost_gate.pipeline import AnalysisRequest, run_analysis
 from cost_gate.reporting import render_json, render_markdown
 
@@ -27,6 +28,21 @@ pytestmark = pytest.mark.e2e
 ROOT = Path(__file__).resolve().parents[2]
 GOLDEN = ROOT / "tests" / "golden"
 EXAMPLES = ROOT / "examples" / "cloudformation"
+SCENARIOS = load_scenarios(ROOT / "examples" / "scenarios")
+SCENARIO_IDS = [scenario.identifier for scenario, _ in SCENARIOS]
+
+
+def run_demo_scenario(identifier: str):
+    """Run one bundled scenario with the clock pinned."""
+    scenario, directory = next(pair for pair in SCENARIOS if pair[0].identifier == identifier)
+    return run_scenario(
+        scenario,
+        directory,
+        shared_config=ROOT / "examples" / "config" / "cost-gate.yaml",
+        catalog=ROOT / "pricing-data",
+        clock=FixedClock(),
+        tool_version="0.1.0",
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -105,3 +121,20 @@ class TestNoAbsolutePathsEscape:
         # Otherwise Windows and Linux disagree about a file they both read correctly.
         payload = render_json(build_artifact())
         assert "examples/cloudformation/proposed.yaml" in payload
+
+
+class TestScenarioReports:
+    """A golden report for every scenario.
+
+    The scenario expectations say the gate reached the right verdict. These say the
+    report a human actually reads did not change without someone noticing - the wording,
+    the ordering, the rounding and the escaping included.
+    """
+
+    @pytest.mark.parametrize("identifier", SCENARIO_IDS)
+    def test_the_report_is_unchanged(self, identifier):
+        artifact, _outcome = run_demo_scenario(identifier)
+        if artifact is None:
+            # The scenario expects the analysis to fail; there is no report to compare.
+            return
+        compare(f"scenarios/{identifier}.md", render_markdown(artifact))

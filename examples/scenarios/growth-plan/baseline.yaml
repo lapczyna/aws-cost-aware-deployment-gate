@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Baseline for the worked example: a single private subnet with an application
+  server and its database. Nothing here reaches the internet, and nothing is
+  charged by the hour beyond the two instances and their storage.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: development
+    AllowedValues: [development, staging, production]
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: payments
+
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: payments
+
+  ApplicationServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.small
+      SubnetId: !Ref PrivateSubnet
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: payments
+
+  ApplicationVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: us-east-1a
+      Size: 50
+      VolumeType: gp3
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: payments
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: db.t3.small
+      Engine: postgres
+      AllocatedStorage: 100
+      StorageType: gp3
+      MultiAZ: false
+      BackupRetentionPeriod: 7
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: payments

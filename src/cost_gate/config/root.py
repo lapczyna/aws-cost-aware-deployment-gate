@@ -36,7 +36,15 @@ class PricingConfig(BaseModel):
     back between providers and must be requested explicitly: an implicit fallback would
     let a failed lookup quietly become a stale price (ADR 0005)."""
 
-    catalog: str = "pricing-data"
+    catalog: str = ""
+    """Where the pricing catalog lives, relative to this configuration file.
+
+    Empty means the bundled catalog, which is what a configuration that does not
+    mention pricing data should get. The previous default of ``pricing-data`` meant
+    "a directory sitting beside my config", which is only true for this repository's
+    own layout and produced a confusing "manifest.yaml is missing" for everyone else.
+    """
+
     cache_dir: str | None = None
     ttl_hours: int = 24
 

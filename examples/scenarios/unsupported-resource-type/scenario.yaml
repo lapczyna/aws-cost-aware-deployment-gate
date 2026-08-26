@@ -1,0 +1,19 @@
+version: 1
+id: unsupported-resource-type
+title: A resource type the tool cannot price
+demonstrates: >-
+  Coverage is finite and pretending otherwise is the failure mode that destroys trust
+  in a cost tool. An unsupported type produces a visible unknown component: not
+  silently zero, not silently dropped, and not a blocked deployment either. The report
+  says what it does not know and lets a human decide.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: PASS
+  exit_code: 0
+  delta: unchanged
+  unknowns: some

@@ -60,6 +60,28 @@ def _in_scope(
     return current_total, proposed_total, proposed_total - current_total, unknown
 
 
+def _applies(
+    budget: BudgetDefinition,
+    contexts: Mapping[ResourceKey, ResourceContext],
+    fallback: ResourceContext,
+) -> bool:
+    """Whether this change can affect this budget at all.
+
+    A budget scoped to production has nothing to say about a change being deployed to
+    development, and reporting its utilisation against that change is worse than
+    unhelpful: with ``baseline_actual_monthly`` set, a budget already past its warning
+    threshold would warn on *every* pull request, including ones that cost nothing.
+    A gate that flags everything is quickly ignored, taking the real findings with it.
+
+    The budget applies when its scope matches the context being deployed to, or any
+    resource in the change. Note this is about relevance, not about the sums: a budget
+    that applies but whose scoped total is zero is still evaluated and reported.
+    """
+    if budget.scope.matches(fallback):
+        return True
+    return any(budget.scope.matches(context) for context in contexts.values())
+
+
 def evaluate_budgets(
     config: BudgetsConfig | None,
     report: CostReport,
@@ -74,6 +96,8 @@ def evaluate_budgets(
 
     evaluations: list[BudgetEvaluation] = []
     for budget in config.budgets:
+        if not _applies(budget, attribution, default_context):
+            continue
         current, proposed, delta, unknown = _in_scope(budget, report, attribution, default_context)
         limit = budget.monthly_limit.to_money() if budget.monthly_limit else None
         actual = (

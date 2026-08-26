@@ -215,31 +215,6 @@
         "approver_group": null
       },
       {
-        "policy_id": "budget:payments-production-monthly:threshold",
-        "description": "Payments production monthly budget",
-        "matched": true,
-        "evaluated_inputs": {
-          "utilization_percent": "82.5",
-          "monthly_limit": "$2000.00",
-          "basis": "actual+delta"
-        },
-        "matched_conditions": [
-          "warning_percent"
-        ],
-        "reason": "budget payments-production-monthly is at 82.5% of $2000.00, past its warning threshold (measured against reported actual spend plus the estimated change)",
-        "evidence": [
-          {
-            "description": "estimated $0.00 against a $2000.00 limit",
-            "resource": null,
-            "component_id": null,
-            "source": null
-          }
-        ],
-        "action": "WARN",
-        "severity": "HIGH",
-        "approver_group": null
-      },
-      {
         "policy_id": "budget:pull-request-cost-increase:increase",
         "description": "Budget pull-request-cost-increase increase cap",
         "matched": false,
@@ -256,48 +231,6 @@
       }
     ],
     "budget_evaluations": [
-      {
-        "budget_id": "payments-production-monthly",
-        "scope_matched": {
-          "application": "payments",
-          "environment": "production"
-        },
-        "estimated_infrastructure_current": {
-          "amount": "0",
-          "currency": "USD"
-        },
-        "estimated_infrastructure_proposed": {
-          "amount": "0",
-          "currency": "USD"
-        },
-        "estimated_delta": {
-          "amount": "0",
-          "currency": "USD"
-        },
-        "monthly_limit": {
-          "amount": "2000",
-          "currency": "USD"
-        },
-        "maximum_monthly_increase": null,
-        "baseline_actual_monthly": {
-          "amount": "1650",
-          "currency": "USD"
-        },
-        "forecast_monthly": {
-          "amount": "1740",
-          "currency": "USD"
-        },
-        "utilization_percent": "82.500",
-        "headroom": {
-          "amount": "350",
-          "currency": "USD"
-        },
-        "thresholds_crossed": [
-          "warning"
-        ],
-        "unknown_component_count": 0,
-        "basis": "actual+delta"
-      },
       {
         "budget_id": "pull-request-cost-increase",
         "scope_matched": {
@@ -330,11 +263,6 @@
       }
     ],
     "reasons": [
-      {
-        "text": "budget payments-production-monthly is at 82.5% of $2000.00, past its warning threshold (measured against reported actual spend plus the estimated change)",
-        "policy_id": "budget:payments-production-monthly:threshold",
-        "severity": "HIGH"
-      },
       {
         "text": "A new NAT Gateway in development requires architecture review",
         "policy_id": "nat-gateway-in-development",

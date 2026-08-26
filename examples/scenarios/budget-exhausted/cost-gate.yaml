@@ -1,0 +1,21 @@
+# A deliberately small budget, so that one ordinary change exhausts it.
+#
+# This scenario carries its own complete configuration rather than pointing at the
+# shared one. Referenced paths are confined to the directory holding this file,
+# because they come from a file a pull request can edit: `../../config/usage.yaml`
+# is refused, and rightly so.
+version: 1
+
+region: us-east-1
+currency: USD
+monthly_hours: 730
+
+environment: development
+application: payments
+
+usage_profile: usage.yaml
+budgets: budgets.yaml
+policies: policies.yaml
+
+pricing:
+  provider: fixtures

@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: The same subnet, reaching them through gateway endpoints.
+
+Resources:
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: vpc-0demo00000000000
+      CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: vpc-0demo00000000000
+      ServiceName: com.amazonaws.us-east-1.s3
+      VpcEndpointType: Gateway
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments
+  DynamoDbEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: vpc-0demo00000000000
+      ServiceName: com.amazonaws.us-east-1.dynamodb
+      VpcEndpointType: Gateway
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

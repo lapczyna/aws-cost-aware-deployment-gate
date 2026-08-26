@@ -1,0 +1,19 @@
+version: 1
+id: unresolved-parameter
+title: An instance type that is not knowable at analysis time
+demonstrates: >-
+  The size comes from a parameter with no default, so at the moment the pull request
+  is reviewed nobody knows what will be deployed. Guessing the cheapest option would
+  produce a comfortable number and an unpleasant surprise. The report states which
+  input was missing and how to supply it.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: PASS
+  exit_code: 0
+  delta: unchanged
+  unknowns: some

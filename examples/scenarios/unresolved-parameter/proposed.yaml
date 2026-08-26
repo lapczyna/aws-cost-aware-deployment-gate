@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: An instance whose size is chosen at deployment time.
+
+Parameters:
+  WorkerInstanceType:
+    Type: String
+    Description: Chosen per deployment; deliberately has no default.
+
+Resources:
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: vpc-0demo00000000000
+      CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments
+  Worker:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref WorkerInstanceType
+      SubnetId: !Ref PrivateSubnet
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

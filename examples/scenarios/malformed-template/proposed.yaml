@@ -1,0 +1,6 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Resources declared as a list, which CloudFormation does not accept.
+
+Resources:
+  - Type: AWS::EC2::Instance
+    InstanceType: t3.small

@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: The reporting database, decommissioned.
+
+Resources:
+  ApplicationServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.small
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

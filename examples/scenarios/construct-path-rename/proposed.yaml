@@ -1,0 +1,15 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: The same construct, resized and renamed.
+
+Resources:
+  WorkerBBBB2222:
+    Type: AWS::EC2::Instance
+    Metadata:
+      "aws:cdk:path": PaymentsStack/Worker/Resource
+    Properties:
+      InstanceType: t3.large
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

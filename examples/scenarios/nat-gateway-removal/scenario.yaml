@@ -1,0 +1,19 @@
+version: 1
+id: nat-gateway-removal
+title: Replacing a NAT Gateway with VPC endpoints
+demonstrates: >-
+  The other half of the first scenario, and the one worth celebrating. Traffic that
+  only ever reached AWS services does not need a NAT Gateway, and gateway endpoints
+  for S3 and DynamoDB carry no hourly charge. The delta is negative and the report
+  presents it as a saving.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: PASS
+  exit_code: 0
+  delta: decrease
+  unknowns: some

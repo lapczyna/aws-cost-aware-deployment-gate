@@ -1,0 +1,26 @@
+version: 1
+id: production-unknown-database
+title: An unpriceable database added to production
+demonstrates: >-
+  The case the whole uncertainty model exists for. The instance class comes from another
+  stack's output, so at review time nobody can say what this database will cost. In
+  production that is not treated as zero and not waved through: a rule blocks
+  specifically on an expensive resource type whose cost could not be established.
+  Uncertainty is information, and here it is the deciding information. Note that the
+  estimate is not simply absent: the 500 GB of storage is priced, because that much is
+  knowable, while the instance class beside it stays unknown. Partial knowledge is
+  reported as exactly that rather than being rounded up into a confident total or down
+  into nothing.
+environment: production
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: BLOCK
+  exit_code: 20
+  delta: increase
+  unknowns: some
+  matched_policies:
+    - unresolved-expensive-resource

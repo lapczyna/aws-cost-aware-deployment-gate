@@ -1,0 +1,19 @@
+version: 1
+id: database-decommission
+title: Deleting a database, for a negative delta
+demonstrates: >-
+  Cost analysis that only ever counts upwards is a tax on cleaning things up. A
+  removal produces a genuinely negative delta and is reported as a saving. It also
+  exercises the sign convention end to end, since a removed component can never have a
+  positive delta.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: PASS
+  exit_code: 0
+  delta: decrease
+  unknowns: none

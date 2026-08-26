@@ -1,0 +1,18 @@
+version: 1
+id: multi-az-database
+title: Making a database highly available
+demonstrates: >-
+  A one-word change that roughly doubles a bill. Availability is bought with money,
+  and the point of the gate is to make that trade visible at the moment it is being
+  made rather than at the end of the month.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: PASS
+  exit_code: 0
+  delta: increase
+  unknowns: some

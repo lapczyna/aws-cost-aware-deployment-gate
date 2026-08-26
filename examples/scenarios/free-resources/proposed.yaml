@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: The same server, with access controls declared.
+
+Resources:
+  ApplicationServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.small
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments
+  ServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Application server ingress
+      VpcId: vpc-0demo00000000000
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments
+  ServerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

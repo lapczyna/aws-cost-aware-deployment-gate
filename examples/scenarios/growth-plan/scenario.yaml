@@ -1,0 +1,23 @@
+version: 1
+id: growth-plan
+title: Several reasonable decisions at once
+demonstrates: >-
+  No single change here is unreasonable, which is the point. Outbound internet access,
+  a load balancer and a highly available database are each defensible, and together
+  they are a recurring cost nobody explicitly agreed to. This is the scenario that
+  shows fixed and usage-based estimates, unknowns, budgets and policies in one report.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: REQUIRE_APPROVAL
+  exit_code: 10
+  delta: increase
+  unknowns: some
+  matched_policies:
+    - nat-gateway-in-development
+  approver_groups:
+    - platform-architecture

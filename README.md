@@ -4,7 +4,7 @@ A CI/CD gate that estimates the monthly AWS cost impact of an infrastructure cha
 is deployed**, evaluates it against version-controlled budgets and policies, and returns an
 explainable decision on the pull request.
 
-> **Project status: Phase 11 — the gate runs end to end. `cost-gate analyze` compares two templates, prices the difference, applies budgets and policies, and exits with a code CI can act on. Demo scenarios and the GitHub integration are next.**
+> **Project status: Phase 12 — seventeen demonstration scenarios run offline, each declaring by hand what the gate should do with it. CDK input and the GitHub pull-request integration are next.**
 > This README is a skeleton. Sections marked *(pending)* are completed in later phases, and all
 > sample reports will be generated artifacts rather than hand-written illustrations.
 
@@ -114,7 +114,19 @@ hand. Regenerate them with `python scripts/dev.py golden --update`.
 
 ## Local demo
 
-*(pending — Phase 12)* Deterministic scenarios runnable without AWS credentials.
+Seventeen scenarios, offline, no credentials:
+
+```bash
+cost-gate demo --list                                 # what each one shows
+cost-gate demo                                        # run them all
+cost-gate demo --scenario nat-gateway-development --report
+```
+
+Each covers something the others do not: a deletion producing a negative delta, an
+unpriceable database blocking production, a CDK rename that must not look like a delete
+and a create, a change that costs nothing at all. Every scenario states **by hand** what
+the gate ought to do with it, so the suite catches wrong behaviour rather than merely
+recording it. See [demo scenarios](docs/demo-scenarios.md).
 
 ## Supported AWS resources
 
@@ -148,7 +160,7 @@ python scripts/dev.py all         # the full gate, exactly as CI runs it
 | `analyze` | Compare two templates and gate on the estimated difference |
 | `explain-estimate` | Show how one resource's cost was arrived at |
 | `explain-decision` | Show every rule considered, including those that did not fire |
-| `demo` | Deterministic scenarios (Phase 12) |
+| `demo` | Run the bundled scenarios offline |
 
 The architecture rule is machine-enforced rather than aspirational: adding `import typer` to
 `cost_gate.domain` fails `python scripts/dev.py imports`.

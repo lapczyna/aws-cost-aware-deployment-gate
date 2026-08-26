@@ -1,0 +1,17 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: The same instance, retagged.
+
+Resources:
+  ApplicationServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.small
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments
+        - Key: CostCentre
+          Value: cc-4471
+        - Key: Owner
+          Value: payments-platform

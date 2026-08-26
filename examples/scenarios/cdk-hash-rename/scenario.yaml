@@ -1,0 +1,20 @@
+version: 1
+id: cdk-hash-rename
+title: A CDK logical ID whose hash suffix changed
+demonstrates: >-
+  CDK embeds a content hash in logical IDs, so editing a property renames the
+  resource. Matching on the logical ID alone would report a delete and a create, and
+  invent a large cost swing out of nothing. The heuristic match that pairs them is
+  labelled LOW confidence and surfaced in the report, because a rename that is guessed
+  is not a rename that is known.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: PASS
+  exit_code: 0
+  delta: increase
+  unknowns: none

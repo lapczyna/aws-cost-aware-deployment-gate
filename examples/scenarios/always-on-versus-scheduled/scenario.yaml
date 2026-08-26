@@ -1,0 +1,24 @@
+version: 1
+id: always-on-versus-scheduled
+title: Two resources in one change, billed on different clocks
+demonstrates: >-
+  The development environment runs on a weekday schedule, so an instance is priced for
+  the hours it actually runs. A NAT Gateway in the same change is not: it is billed
+  for as long as it exists, and a schedule would only apply if the deployment deleted
+  and recreated it nightly. Both assumptions appear in the report with the reasoning
+  behind them.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: REQUIRE_APPROVAL
+  exit_code: 10
+  delta: increase
+  unknowns: some
+  matched_policies:
+    - nat-gateway-in-development
+  approver_groups:
+    - platform-architecture

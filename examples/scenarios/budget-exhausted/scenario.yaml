@@ -1,0 +1,19 @@
+version: 1
+id: budget-exhausted
+title: A change that does not fit in the budget
+demonstrates: >-
+  A budget turns an opinion into a limit. This one is small enough that a single
+  ordinary instance crosses its blocking threshold, and the gate refuses rather than
+  warning. Note that the budget is compared against an estimate from the templates,
+  which is not the same thing as the bill, and the report says so.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: BLOCK
+  exit_code: 20
+  delta: increase
+  unknowns: none

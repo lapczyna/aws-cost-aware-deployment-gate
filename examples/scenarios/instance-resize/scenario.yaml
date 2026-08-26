@@ -1,0 +1,19 @@
+version: 1
+id: instance-resize
+title: An instance moved to a larger type
+demonstrates: >-
+  A modification, not an add and a remove. Both states are priced under the same usage
+  profile and the difference is derived from them, which is what makes the report
+  reconcile: current plus delta equals proposed by construction rather than by
+  coincidence.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: PASS
+  exit_code: 0
+  delta: increase
+  unknowns: none

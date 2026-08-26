@@ -1,0 +1,19 @@
+version: 1
+id: free-resources
+title: Resources that genuinely cost nothing
+demonstrates: >-
+  Free and unknown are different claims, and collapsing them in either direction is a
+  bug. A security group and an IAM role carry no charge of their own, and the tool
+  says so from a curated list rather than by failing to find a price and rounding down
+  to zero.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: PASS
+  exit_code: 0
+  delta: unchanged
+  unknowns: none

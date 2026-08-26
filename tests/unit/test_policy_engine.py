@@ -330,17 +330,65 @@ class TestBudgetEvaluation:
         assert len(matched) == 1
         assert "above the $10.00 increase allowed" in matched[0].reason
 
-    def test_a_budget_scoped_elsewhere_totals_nothing(self):
+    def test_a_budget_this_change_cannot_affect_is_not_evaluated(self):
+        # A production budget has nothing to say about a development change. It used to
+        # be evaluated anyway and totalled to zero, which looks harmless until the
+        # budget carries `baseline_actual_monthly`: utilisation is then measured
+        # against reported spend, so a budget already past its warning threshold warned
+        # on every pull request, including ones that cost nothing at all.
         config = BudgetsConfig.model_validate(
             {
                 "version": 1,
                 "budgets": [
-                    {"id": "other", "scope": {"environment": "production"}, "monthly_limit": 100}
+                    {
+                        "id": "other",
+                        "scope": {"environment": "production"},
+                        "monthly_limit": 100,
+                        "baseline_actual_monthly": 95,
+                        "thresholds": {"warning_percent": 80},
+                    }
                 ],
             }
         )
-        evaluation = facts(budgets=config).budgets[0]
-        assert evaluation.estimated_infrastructure_proposed == Money.zero()
+        assert facts(budgets=config, environment="development").budgets == ()
+
+    def test_a_budget_covering_this_environment_is_evaluated(self):
+        config = BudgetsConfig.model_validate(
+            {
+                "version": 1,
+                "budgets": [
+                    {"id": "dev", "scope": {"environment": "development"}, "monthly_limit": 100}
+                ],
+            }
+        )
+        evaluations = facts(budgets=config, environment="development").budgets
+        assert [evaluation.budget_id for evaluation in evaluations] == ["dev"]
+
+    def test_an_unscoped_budget_always_applies(self):
+        # An empty scope is how an organisation-wide budget is written.
+        config = BudgetsConfig.model_validate(
+            {"version": 1, "budgets": [{"id": "everything", "monthly_limit": 100}]}
+        )
+        assert len(facts(budgets=config).budgets) == 1
+
+    def test_an_applicable_budget_counts_only_the_resources_in_its_scope(self):
+        # The scope still filters components; it is only the decision to evaluate the
+        # budget at all that changed.
+        config = BudgetsConfig.model_validate(
+            {
+                "version": 1,
+                "budgets": [
+                    {
+                        "id": "other-application",
+                        "scope": {"application": "analytics"},
+                        "monthly_limit": 100,
+                    }
+                ],
+            }
+        )
+        evaluations = facts(budgets=config, application="analytics").budgets
+        assert evaluations
+        assert evaluations[0].estimated_infrastructure_proposed > Money.zero()
 
 
 class TestPolicyEvaluation:

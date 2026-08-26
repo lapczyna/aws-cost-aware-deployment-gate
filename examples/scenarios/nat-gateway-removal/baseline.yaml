@@ -1,0 +1,24 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: A subnet reaching AWS services through a NAT Gateway.
+
+Resources:
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: vpc-0demo00000000000
+      CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId: !Ref PrivateSubnet
+      ConnectivityType: public
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

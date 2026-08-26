@@ -1,0 +1,18 @@
+version: 1
+id: malformed-template
+title: A template the tool cannot read
+demonstrates: >-
+  The gate must fail loudly rather than approve what it could not read. This exits 30,
+  which no failure threshold suppresses: declining to fail the build on warnings is a
+  different request from declining to fail it when the tool did not run.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: ERROR
+  exit_code: 30
+  delta: unchanged
+  unknowns: none

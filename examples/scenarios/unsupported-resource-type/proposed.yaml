@@ -1,0 +1,24 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: A managed cache added alongside it.
+
+Resources:
+  ApplicationServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.small
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments
+  SessionCache:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      CacheNodeType: cache.r6g.large
+      Engine: redis
+      NumCacheNodes: 1
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

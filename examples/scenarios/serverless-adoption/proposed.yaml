@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: A serverless application.
+
+Resources:
+  Placeholder:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: vpc-0demo00000000000
+      CidrBlock: 10.0.9.0/24
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments
+  CheckoutFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Handler: index.handler
+      MemorySize: 512
+      Timeout: 30
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              return {}
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments
+  CheckoutApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: checkout
+      ProtocolType: HTTP
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: orderId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: orderId
+          KeyType: HASH
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

@@ -1,0 +1,24 @@
+version: 1
+id: nat-gateway-development
+title: A NAT Gateway added to a development stack
+demonstrates: >-
+  The change that motivated this tool. A NAT Gateway costs an hourly rate whether or
+  not anything routes through it, and it is billed for as long as it exists, so a
+  development environment that shuts down overnight still pays for it around the
+  clock. Nothing in the diff says so, and the review that approves it is usually about
+  routing rather than money.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: REQUIRE_APPROVAL
+  exit_code: 10
+  delta: increase
+  unknowns: some
+  matched_policies:
+    - nat-gateway-in-development
+  approver_groups:
+    - platform-architecture

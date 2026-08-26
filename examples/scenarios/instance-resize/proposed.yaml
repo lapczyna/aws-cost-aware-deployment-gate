@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: The same server, resized.
+
+Resources:
+  ApplicationServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.large
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

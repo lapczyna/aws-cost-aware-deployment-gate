@@ -39,7 +39,8 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 8 | AWS Price List adapter | **skipped for now** (see below) |
 | 9 | Budget and policy engine | `ae602a8` |
 | 10 | FinOps recommendation engine | **deferred** — nothing depends on it |
-| 11 | Reporting, CLI and the end-to-end pipeline | *(recorded at commit time)* |
+| 11 | Reporting, CLI and the end-to-end pipeline | `617ce44`, fixed in `902ec6c` |
+| 12 | Deterministic demo scenarios | *(recorded at commit time)* |
 
 ## Current state of the repository
 
@@ -196,9 +197,17 @@ Also: `schemas/` (7 generated files, now including `artifact.schema.json`),
 `tests/golden/` (byte-compared reports), `tests/factories.py` (domain builders for
 tests), `tests/fixtures/templates/`.
 
+`demo/` (Phase 12) — `models.py`, `loader.py`, `runner.py`. Seventeen scenarios live
+in `examples/scenarios/<id>/` as two CloudFormation snapshots plus a `scenario.yaml`
+stating **by hand** what the gate ought to do. That hand-written part is the whole
+point: an expectation recorded from the tool's own output asserts only that the tool
+agrees with itself. Golden reports under `tests/golden/scenarios/` are the other
+mechanism, and they do the opposite job — they catch unintended *change*, not wrong
+*behaviour*.
+
 Still absent:
 `recommendations/`, `observability/`, `infrastructure/`, the AWS Price List adapter,
-the GitHub workflows and the demo scenarios.
+and the GitHub workflows.
 
 ## Environment facts that affect implementation
 
@@ -290,7 +299,30 @@ the GitHub workflows and the demo scenarios.
     comment. `parsers.normalize.display_path` makes it relative with forward slashes.
     Caught by CI, not locally: the golden file was generated on the machine whose
     paths it embedded, which is the failure mode golden files are prone to.
-29. `git checkout -- <path>` silently does nothing for an **untracked** file. When
+29. **A budget must not be evaluated when the change cannot affect it.** A budget
+    scoped to production used to be evaluated against a development change, total to
+    zero, and still report utilisation. With `baseline_actual_monthly` set, a budget
+    already past its warning threshold then warned on *every* pull request, including
+    ones costing nothing. `budgets.engine._applies` gates this now. Found by the demo
+    scenarios: fifteen of seventeen came back WARN, which was too uniform to be real.
+30. Configured paths are confined to the configuration file's directory, so a scenario
+    cannot point at `../../config/usage.yaml`. That guard is correct - those paths come
+    from a file a pull request can edit - so a scenario needing bespoke rules carries a
+    complete configuration of its own. See `examples/scenarios/budget-exhausted/`.
+31. `pricing.catalog` used to default to `"pricing-data"`, meaning "a directory beside
+    my config", which is only true for this repository's own layout. It now defaults to
+    empty, meaning the bundled catalog.
+32. Parametrised tests that each re-run the pipeline are unusably slow (600s for one
+    file). Cache the runs with `functools.cache`, but keep an *uncached* helper for the
+    determinism tests, or they assert nothing.
+33. An unknown component may legitimately have a known zero on one side: a resource
+    being added did not cost anything before. The invariant is that `monthly_delta` is
+    `None` and the *unknown side* is `None`, not that all three are.
+34. EKS control-plane pricing is flat-rate, so an unresolvable `Version` does not make a
+    cluster unpriceable. An unresolvable `DBInstanceClass` does make an RDS instance
+    unpriceable - while its storage stays priced, which is a better demonstration of
+    partial knowledge than the one originally planned.
+35. `git checkout -- <path>` silently does nothing for an **untracked** file. When
     probing whether a test really fails, revert the probe explicitly and re-check.
 
 ## Verification commands
@@ -347,30 +379,28 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
 
 ## Exact recommended next action
 
-**Phase 12 — deterministic demo scenarios.** The gate now runs end to end, so the next
-job is to prove it does so across the range of situations it claims to handle, not just
-the one worked example.
+**Phase 13 — CDK integration.** Two scenarios already demonstrate the *matching* problem
+CDK creates (`cdk-hash-rename`, `construct-path-rename`) using hand-written templates.
+What is missing is reading a real CDK app.
 
-* `tests/fixtures/scenarios/<name>/{baseline,proposed}.yaml` plus an expected result and
-  exit code per scenario. The 17 scenarios are listed in the original brief: NAT gateway
-  in development, unresolved production EKS, low-cost tag change, instance resize,
-  deletion (a negative delta), an unsupported resource type, a CDK hash-suffix rename,
-  and so on.
-* `cost-gate demo [--list] [--scenario name]`, driving the same `run_analysis` the CLI
-  uses. A demo that assembled the pipeline itself would eventually disagree with the
-  real one.
-* Reuse the golden-file mechanism from Phase 11 (`tests/e2e/test_golden.py`,
-  `python scripts/dev.py golden --update`) rather than inventing a second one.
+* `cost-gate cdk snapshot --app <dir> --ref <git-ref> --out <dir>`: create a temporary
+  `git worktree`, run `cdk synth --json`, copy the templates out, remove the worktree.
+  Multi-stack aware.
+* An example CDK app under `examples/cdk/`, with **pre-synthesised** templates checked
+  in so the default test suite stays fast, hermetic and Node-free. Real `cdk synth` runs
+  only under the opt-in `-m cdk` marker (ADR/plan decision D8).
+* Document the limitations honestly in `docs/domain-model.md`: asset hashes,
+  `cdk.context.json` drift, cross-stack `ImportValue`.
 
-Things Phase 11 established that Phase 12 depends on:
+Things Phase 12 established that Phase 13 depends on:
 
-* `run_analysis(AnalysisRequest(...))` in `src/cost_gate/pipeline.py` is the single
-  entry point. `AnalysisError` means no trustworthy answer (exit 30); a report full of
-  unknowns is a *successful* run.
-* `FixedClock` in `adapters/clock.py` is what makes output byte-stable. Any new golden
-  file must use it.
-* When both sides are single files, the pipeline passes a shared stack name
-  (`DEFAULT_SINGLE_STACK`). Without it nothing pairs across the two snapshots and every
-  resource looks deleted and recreated.
+* `cost_gate.demo` is the pattern for anything that bundles fixtures: authored under
+  `examples/`, force-included into the wheel at `cost_gate/_data/`, located by a
+  `default_*_path()` helper that prefers the packaged copy.
+* Add new demonstrations as scenarios rather than as bespoke tests. Write the
+  expectation first; if the tool disagrees, establish which of you is wrong before
+  changing either.
+* `python scripts/dev.py demo`, `golden --update` and `docs` are the three regeneration
+  commands. `docs/demo-scenarios.md` is generated, so never edit it by hand.
 
-Commit message: `test: add deterministic deployment gate scenarios`
+Commit message: `feat: analyze aws cdk infrastructure changes`

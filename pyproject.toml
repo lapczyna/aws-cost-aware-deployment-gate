@@ -59,6 +59,10 @@ packages = ["src/cost_gate"]
 # diffs, and force-included into the wheel so an installed package still works.
 [tool.hatch.build.targets.wheel.force-include]
 "pricing-data" = "cost_gate/_data/pricing"
+# Scenarios ship too, so `cost-gate demo` works from an installed package and
+# not only from a checkout.
+"examples/scenarios" = "cost_gate/_data/scenarios"
+"examples/config" = "cost_gate/_data/config"
 
 [tool.hatch.build.targets.sdist]
 include = ["src/", "tests/", "pricing-data/", "schemas/", "docs/", "README.md", "LICENSE"]

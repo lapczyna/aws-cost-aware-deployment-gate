@@ -18,7 +18,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 9 | Budget and policy engine | done | see git log |
 | 10 | FinOps recommendation engine | planned | deferred until after Phase 11 |
 | 11 | Reporting and CLI | done | see git log |
-| 12 | End-to-end demo scenarios | planned | |
+| 12 | End-to-end demo scenarios | done | see git log |
 | 13 | CDK integration | planned | |
 | 14 | GitHub pull-request integration | planned | |
 | 15 | Approval and deployment safeguards | planned | |
@@ -91,7 +91,7 @@ code rather than trusted.
 
 | Document | Phase |
 |---|---|
-| `docs/demo-scenarios.md` | 12 |
+| `docs/demo-scenarios.md` | 12 (done, generated) |
 | `docs/operations.md` | 15 |
 | `docs/actual-cost-feedback.md` | 17 |
 | `docs/production-readiness.md` | 18 |

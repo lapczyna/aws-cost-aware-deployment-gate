@@ -1,0 +1,18 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: The same database, made highly available.
+
+Resources:
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: db.t3.medium
+      Engine: postgres
+      AllocatedStorage: 100
+      StorageType: gp3
+      MultiAZ: true
+      BackupRetentionPeriod: 7
+      Tags:
+        - Key: Environment
+          Value: development
+        - Key: Application
+          Value: payments

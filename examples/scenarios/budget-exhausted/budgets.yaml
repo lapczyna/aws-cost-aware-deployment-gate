@@ -1,0 +1,14 @@
+# One tight budget. The blocking threshold is what this scenario demonstrates.
+version: 1
+
+budgets:
+  - id: sandbox-monthly
+    description: A sandbox account with a hard ceiling
+    scope:
+      environment: development
+    monthly_limit: 40
+    thresholds:
+      warning_percent: 60
+      approval_percent: 80
+      blocking_percent: 100
+    severity: HIGH

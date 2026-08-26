@@ -1,0 +1,19 @@
+version: 1
+id: tag-only-change
+title: A change that costs nothing
+demonstrates: >-
+  Most pull requests do not change costs, and a gate that cannot say so plainly will
+  be switched off. None of these tags is pricing-relevant, so the resource is reported
+  as changed with a zero delta rather than being repriced or quietly dropped from the
+  report.
+environment: development
+application: payments
+
+# Written by hand, stating what the gate ought to do with this change.
+# Never recorded from a run: an expectation copied from the tool's own output
+# asserts only that the tool agrees with itself, including when it is wrong.
+expect:
+  result: PASS
+  exit_code: 0
+  delta: unchanged
+  unknowns: none
