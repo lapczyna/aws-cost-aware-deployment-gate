@@ -4,7 +4,7 @@ A CI/CD gate that estimates the monthly AWS cost impact of an infrastructure cha
 is deployed**, evaluates it against version-controlled budgets and policies, and returns an
 explainable decision on the pull request.
 
-> **Project status: Phase 13 — CDK applications can be snapshotted and compared, with resources matched on construct path so a rename is not mistaken for a delete and a create. The GitHub pull-request integration is next.**
+> **Project status: Phase 14 — the gate runs on pull requests and posts a single comment that updates in place, through a two-workflow privilege split that never lets a write token near pull-request code.**
 > This README is a skeleton. Sections marked *(pending)* are completed in later phases, and all
 > sample reports will be generated artifacts rather than hand-written illustrations.
 
@@ -159,7 +159,28 @@ See [the roadmap](docs/roadmap.md#planned-service-coverage). Once the CLI exists
 
 ## GitHub Actions setup
 
-*(pending — Phase 14)* See [GitHub integration](docs/github-integration.md) for the design.
+```yaml
+- uses: lapczyna/aws-cost-aware-deployment-gate/.github/actions/cost-gate@<sha>
+  with:
+    baseline: build/baseline
+    proposed: build/proposed
+    config: config/cost-gate.yaml
+    fail-on: block
+```
+
+The integration is **two workflows, deliberately**:
+
+| | Runs PR code | Holds a token |
+|---|---|---|
+| `cost-gate.yml` (`pull_request`) | yes | no — `contents: read`, no secrets referenced |
+| `cost-gate-comment.yml` (`workflow_run`) | no | yes — `pull-requests: write` |
+
+Either half is safe alone; combining them is what `pull_request_target` does, and why it
+is prohibited here. The comment body is re-rendered from the validated JSON by trusted
+code, so a crafted `report.md` cannot reach a comment, and the pull request is resolved
+from the `workflow_run` head commit rather than from a number the untrusted job wrote.
+
+See [GitHub integration](docs/github-integration.md).
 
 ## Development
 

@@ -1,0 +1,64 @@
+# The unprivileged half of the cost gate.
+#
+# This workflow runs code from the pull request. It therefore holds no token beyond a
+# read-only one, references no secrets anywhere, and never posts anything. Its only
+# outputs are the job status, the job summary, and an uploaded artifact.
+#
+# The companion workflow (cost-gate-comment.yml) has write access and never runs
+# pull-request code. Neither half is dangerous on its own; combining them - which is
+# what `pull_request_target` would do - is what ADR 0007 prohibits.
+name: cost-gate
+
+on:
+  pull_request:
+    paths:
+      - "examples/**"
+      - "pricing-data/**"
+      - "src/cost_gate/**"
+      - ".github/workflows/cost-gate.yml"
+      - ".github/actions/cost-gate/**"
+
+# No permissions at the workflow level. The one job that needs anything asks for it.
+permissions: {}
+
+concurrency:
+  # A rapid series of pushes should leave one current report, not a queue of
+  # contradictory ones racing to comment.
+  group: cost-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Estimate the cost of this change
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # The baseline may be synthesised from the base revision in a git worktree,
+          # which needs more than a shallow clone.
+          fetch-depth: 0
+
+      - name: Run the gate
+        id: gate
+        uses: ./.github/actions/cost-gate
+        with:
+          baseline: examples/cloudformation/baseline.yaml
+          proposed: examples/cloudformation/proposed.yaml
+          config: examples/config/cost-gate.yaml
+          environment: development
+          application: payments
+          # This repository dogfoods the gate on its own example change, which is
+          # expected to require approval. Failing the build on that would make every
+          # pull request red for a demonstration. A consuming repository would use
+          # `require_approval` or `block` here.
+          fail-on: never
+
+      - name: Report what the gate decided
+        if: always()
+        run: |
+          echo "result:        ${{ steps.gate.outputs.result }}"
+          echo "monthly delta: ${{ steps.gate.outputs.monthly-delta }}"
+          echo "unknowns:      ${{ steps.gate.outputs.unknown-count }}"
+          echo "exit code:     ${{ steps.gate.outputs.exit-code }}"

@@ -41,7 +41,8 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 10 | FinOps recommendation engine | **deferred** — nothing depends on it |
 | 11 | Reporting, CLI and the end-to-end pipeline | `617ce44`, fixed in `902ec6c` |
 | 12 | Deterministic demo scenarios | `4eb6e63`, packaged in `a5178e4` |
-| 13 | CDK integration | *(recorded at commit time)* |
+| 13 | CDK integration | `50cc39e` |
+| 14 | GitHub pull-request integration | *(recorded at commit time)* |
 
 ## Current state of the repository
 
@@ -214,9 +215,17 @@ with credentials. `examples/cdk/` is a two-stack app whose `growth` context flag
 baseline from proposal; its output is committed under `examples/cdk/synthesized/` and
 mirrored into the `cdk-multi-stack-growth` scenario by `dev.py synth`.
 
+`adapters/github.py`, `adapters/github_http.py`, `cli/comment.py` and the two
+workflows (Phase 14). The privilege split is the design: `cost-gate.yml` runs
+pull-request code and holds `contents: read` with no secrets referenced anywhere;
+`cost-gate-comment.yml` holds `pull-requests: write` and never checks out
+pull-request code. The comment body is re-rendered from validated JSON by trusted
+code, and the pull request is resolved from `workflow_run.head_sha` rather than from
+the number the untrusted job wrote.
+
 Still absent:
-`recommendations/`, `observability/`, `infrastructure/`, the AWS Price List adapter,
-and the GitHub workflows.
+`recommendations/`, `observability/`, `infrastructure/`, and the AWS Price List
+adapter.
 
 ## Environment facts that affect implementation
 
@@ -359,7 +368,23 @@ and the GitHub workflows.
 42. Scenarios can hold `baseline/` and `proposed/` **directories** as well as single
     files. A multi-stack CDK change cannot be expressed as one file without losing the
     per-stack structure that makes it worth demonstrating (`demo.loader.snapshot_path`).
-43. `git checkout -- <path>` silently does nothing for an **untracked** file. When
+43. **`workflow_run.pull_requests` is empty for fork pull requests.** Phase 0's design
+    said to cross-check the PR number against it; that would have failed for exactly
+    the case the architecture exists to support. `head_sha` is set by GitHub and is the
+    only routing information the untrusted job cannot influence. The number in the
+    artifact is cross-checked against it, never trusted.
+44. Two open pull requests can share a head commit. The tool refuses rather than
+    guessing - the wrong guess posts a cost analysis onto an unrelated change.
+45. `urlopen` honours `file://`, so an unvalidated API root turns an API client into a
+    file reader, in the job holding the write token. `_validate_api_root` rejects any
+    scheme but http(s). Bandit B310 found this; the fix was a guard, not a suppression.
+46. A nested heredoc inside an indented YAML `run:` block does not work - the
+    terminator must be at column 0. Pass the script through `env:` instead.
+47. `scripts/check_workflows.py` only scanned `.github/workflows/`, so a composite
+    action's `uses:` lines were unpinned-by-omission. It now scans `.github/actions/`
+    too, and rejects a `workflow_run` job that checks out the triggering run's head -
+    which is `pull_request_target` spelled differently.
+48. `git checkout -- <path>` silently does nothing for an **untracked** file. When
     probing whether a test really fails, revert the probe explicitly and re-check.
 
 ## Verification commands
@@ -416,27 +441,26 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
 
 ## Exact recommended next action
 
-**Phase 14 — GitHub pull-request integration.** Everything needed to produce a comment
-exists; nothing posts one.
+**Phase 15 — approval and deployment safeguards.** The gate now reports; what it cannot
+yet do is *hold* a deployment until someone with authority agrees.
 
-* `.github/actions/cost-gate/action.yml` — a composite action wrapping the CLI.
-* `cost-gate.yml` on `pull_request`: `permissions: {contents: read}`, **no secrets, no
-  OIDC**. Runs the analysis, writes `$GITHUB_STEP_SUMMARY`, uploads `report.json`,
-  `report.md` and the PR number as an artifact. Job status comes from the exit code.
-* `cost-gate-comment.yml` on `workflow_run`: `permissions: {pull-requests: write}`.
-  Downloads the artifact and treats it as **untrusted data** — validate against
-  `schemas/artifact.schema.json`, enforce a size cap, then upsert a single comment keyed
-  by `reporting.markdown.COMMENT_MARKER`. Never checks out or executes PR code.
-* `pull_request_target` is prohibited (ADR 0007). `scripts/check_workflows.py` already
-  enforces this and runs in `dev.py all` — extend it rather than adding a second check.
+* Map the decision onto CI: `REQUIRE_APPROVAL` should route to a protected GitHub
+  environment whose reviewers are the approver groups the policies name, rather than
+  merely exiting 10 and hoping a human reads it.
+* An example deployment workflow that depends on the gate job and cannot run on `push`
+  or `pull_request` - `tests/unit/test_workflows.py` is the right place to assert that.
+* Concurrency groups so two deployments of the same environment cannot interleave.
+* A rollback runbook under `docs/runbooks/`.
+* **No AWS resources are to be deployed without the user's explicit approval.** Phase 16
+  is synth-only; keep it that way.
 
-Things Phase 13 established that Phase 14 depends on:
+Things Phase 14 established that Phase 15 depends on:
 
-* The comment body is `reporting.markdown.render_markdown`, already bounded to
-  `MAX_COMMENT_BYTES` and escaped through `reporting/escaping.py`. Do not build a
-  second renderer in the workflow.
-* `cdk synth` executes PR code, so the synthesising job is exactly the one that must
-  not hold a token. This is the concrete reason for the two-workflow split.
-* Test the comment upsert against a fake API object rather than a live repository.
+* `decision.required_approver_groups` already carries who must approve, and
+  `GateDecision` refuses a `REQUIRE_APPROVAL` result that names nobody.
+* The composite action exposes `result`, `monthly-delta`, `unknown-count` and
+  `exit-code` as outputs, which is how a downstream job branches on the verdict.
+* Workflow invariants are asserted in `tests/unit/test_workflows.py` and
+  `scripts/check_workflows.py`. Extend those rather than adding a third mechanism.
 
-Commit message: `ci: integrate cost gate with github pull requests`
+Commit message: `ci: enforce cost-aware deployment approvals`

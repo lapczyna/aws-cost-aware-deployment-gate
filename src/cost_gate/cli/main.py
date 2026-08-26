@@ -21,6 +21,7 @@ from rich.table import Table
 from cost_gate import __version__
 from cost_gate.cli.analyze import analyze, explain_decision, explain_estimate
 from cost_gate.cli.cdk import cdk_app
+from cost_gate.cli.comment import comment
 from cost_gate.cli.demo import demo
 from cost_gate.cli.pricing import pricing_app
 from cost_gate.config import ConfigError, load_config, write_schemas
@@ -51,6 +52,7 @@ app.command("analyze")(analyze)
 app.command("explain-estimate")(explain_estimate)
 app.command("explain-decision")(explain_decision)
 app.command("demo")(demo)
+app.command("comment")(comment)
 
 console = Console(stderr=True)
 

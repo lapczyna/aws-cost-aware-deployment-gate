@@ -86,15 +86,28 @@ jobs:
         run: python scripts/post_comment.py --artifact-dir . --run-id ${{ github.event.workflow_run.id }}
 ```
 
-`scripts/post_comment.py` treats the artifact as hostile:
+`cost-gate comment` treats the artifact as hostile:
 
-1. Refuse files above a size cap.
-2. Validate `report.json` against `schemas/report.schema.json`.
-3. Read the PR number from the artifact **and** cross-check it against the `workflow_run`
-   payload; mismatch aborts.
+1. Refuse files above a size cap, before parsing.
+2. Validate `report.json` against the `AnalysisArtifact` model, which forbids unknown fields
+   and pins the schema version.
+3. **Resolve the pull request from `workflow_run.head_sha`**, not from the number in the
+   artifact. The number is cross-checked and a mismatch aborts, but it is never the thing
+   that decides where the comment goes.
 4. Re-render Markdown from the validated JSON rather than trusting `report.md`, passing every
    template-derived string through the escaper.
 5. Upsert the comment.
+
+> **Correction to the original design.** This document previously said to cross-check the
+> number against `github.event.workflow_run.pull_requests`. That field is **empty for pull
+> requests from forks** — precisely the case this architecture exists to support — so it
+> cannot be the anchor. `head_sha` is set by GitHub and cannot be influenced by the
+> untrusted job, which makes it the only trustworthy routing information available.
+>
+> The number in the artifact is written by a job that ran pull-request code. Trusting it
+> would let a malicious pull request name someone else's and have a cost report posted
+> there. If two open pull requests share a head commit, the tool refuses rather than
+> guessing: the wrong guess puts an analysis on an unrelated change.
 
 Re-rendering from JSON rather than posting the uploaded Markdown is deliberate: it means the
 comment body is produced by trusted code from validated data, so a crafted `report.md` cannot
@@ -177,3 +190,49 @@ The repository runs the gate against its own optional CDK infrastructure
 (`infrastructure/`), so every pull request that touches it publishes a real cost report. This
 is both a continuous end-to-end test and the sample output used in documentation — which is
 why samples in this repository are generated artifacts rather than hand-written illustrations.
+
+## 7. What is actually built
+
+| Piece | Location | Privilege |
+|---|---|---|
+| Composite action | `.github/actions/cost-gate/action.yml` | none — usable from a job with no token |
+| Analysis workflow | `.github/workflows/cost-gate.yml` | `contents: read`, no secrets referenced |
+| Comment workflow | `.github/workflows/cost-gate-comment.yml` | `pull-requests: write`, no PR code |
+| Comment logic | `src/cost_gate/adapters/github.py` | pure; tested against a fake API |
+| HTTP client | `src/cost_gate/adapters/github_http.py` | `urllib` only, no new dependency |
+| Command | `cost-gate comment` | reads the artifact, posts or updates |
+
+### Using the action in another repository
+
+```yaml
+- uses: lapczyna/aws-cost-aware-deployment-gate/.github/actions/cost-gate@<sha>
+  with:
+    baseline: build/baseline
+    proposed: build/proposed
+    config: config/cost-gate.yaml
+    environment: production
+    fail-on: block
+```
+
+Outputs: `result`, `monthly-delta`, `unknown-count`, `exit-code`. The action never calls
+the GitHub API, so it works in a job holding nothing at all — commenting is a separate,
+privileged workflow's job.
+
+### The invariants are tested, not just written down
+
+`tests/unit/test_workflows.py` asserts the properties this document claims: the analysis
+workflow references no secrets and grants only `contents: read`; the comment workflow
+never checks out `workflow_run.head_*`, does not persist credentials, and installs the
+tool from the trusted checkout; every third-party action is pinned to a full commit SHA,
+in composite actions as well as workflows.
+
+`scripts/check_workflows.py` enforces the same rules in `dev.py all`, and additionally
+rejects a `workflow_run` job that checks out the triggering run's head — the mistake that
+would reconstruct `pull_request_target` under a different name. Both exist because a
+privilege split erodes under well-meaning edits, and prose does not stop that.
+
+### Why this repository's own gate uses `fail-on: never`
+
+The gate runs against `examples/cloudformation/`, a change deliberately built to require
+approval. Failing the build on that would make every pull request here red to demonstrate
+a feature. A consuming repository should use `require_approval` or `block`.

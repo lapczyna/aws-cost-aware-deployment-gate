@@ -20,7 +20,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 11 | Reporting and CLI | done | see git log |
 | 12 | End-to-end demo scenarios | done | see git log |
 | 13 | CDK integration | done | see git log |
-| 14 | GitHub pull-request integration | planned | |
+| 14 | GitHub pull-request integration | done | see git log |
 | 15 | Approval and deployment safeguards | planned | |
 | 16 | Optional serverless AWS infrastructure (synth only) | planned | |
 | 17 | Actual-cost feedback prototype | planned | |

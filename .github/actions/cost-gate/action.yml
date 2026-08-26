@@ -1,0 +1,119 @@
+name: Cost-aware deployment gate
+description: >-
+  Estimate the monthly cost of an infrastructure change, apply budgets and policies,
+  and fail the job according to the decision.
+
+# This action must be usable from a job holding no token and no secrets. It therefore
+# never calls the GitHub API: it writes the job summary, uploads artifacts, and sets
+# the job status from the exit code. Posting a comment is a separate, privileged
+# workflow's job - see docs/github-integration.md.
+
+inputs:
+  baseline:
+    description: Baseline template file or directory.
+    required: true
+  proposed:
+    description: Proposed template file or directory.
+    required: true
+  config:
+    description: Path to cost-gate.yaml.
+    required: false
+    default: ""
+  environment:
+    description: Environment being deployed to.
+    required: false
+    default: ""
+  application:
+    description: Application being changed.
+    required: false
+    default: ""
+  fail-on:
+    description: "Lowest result that fails the job: never, warn, require_approval, block."
+    required: false
+    default: require_approval
+  artifact-name:
+    description: Name of the uploaded report artifact.
+    required: false
+    default: cost-gate-report
+  python-version:
+    description: Python version used to run the gate.
+    required: false
+    default: "3.12"
+
+outputs:
+  result:
+    description: PASS, WARN, REQUIRE_APPROVAL, BLOCK or ERROR.
+    value: ${{ steps.analyze.outputs.result }}
+  monthly-delta:
+    description: Estimated monthly cost change.
+    value: ${{ steps.analyze.outputs.monthly-delta }}
+  unknown-count:
+    description: Number of costs that could not be established.
+    value: ${{ steps.analyze.outputs.unknown-count }}
+  exit-code:
+    description: The gate's exit code.
+    value: ${{ steps.analyze.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install the gate
+      shell: bash
+      run: python -m pip install --quiet "${{ github.action_path }}/../../.."
+
+    - name: Analyse
+      id: analyze
+      shell: bash
+      # `set +e` because a non-zero exit is the expected outcome for a blocked change,
+      # and the step still has to publish its outputs and the report before failing.
+      env:
+        SUMMARY_SCRIPT: |
+          import json, pathlib
+          r = json.loads(pathlib.Path("cost-gate-out/report.json").read_text("utf-8"))
+          t = r["cost"]["totals"]
+          print("result=" + r["decision"]["result"])
+          print("monthly-delta=" + t["monthly_delta"]["amount"])
+          print("unknown-count=" + str(t["unknown_component_count"]))
+      run: |
+        set +e
+        mkdir -p cost-gate-out
+        args=(
+          --baseline "${{ inputs.baseline }}"
+          --proposed "${{ inputs.proposed }}"
+          --fail-on "${{ inputs.fail-on }}"
+          --output-json cost-gate-out/report.json
+          --output-markdown cost-gate-out/report.md
+        )
+        [ -n "${{ inputs.config }}" ]      && args+=(--config "${{ inputs.config }}")
+        [ -n "${{ inputs.environment }}" ] && args+=(--environment "${{ inputs.environment }}")
+        [ -n "${{ inputs.application }}" ] && args+=(--application "${{ inputs.application }}")
+
+        cost-gate analyze "${args[@]}"
+        code=$?
+        echo "exit-code=${code}" >> "$GITHUB_OUTPUT"
+
+        # Read with python rather than jq: python is guaranteed present (the step
+        # above installed it) whereas jq is only guaranteed on GitHub-hosted runners.
+        if [ -f cost-gate-out/report.json ]; then
+          python -c "$SUMMARY_SCRIPT" >> "$GITHUB_OUTPUT"
+        fi
+
+        # The pull-request number is recorded for the privileged workflow to
+        # cross-check. It is never trusted as the place to post: that is resolved from
+        # the workflow_run head SHA, which this job cannot influence.
+        echo "${{ github.event.pull_request.number }}" > cost-gate-out/pr-number.txt
+        exit "${code}"
+
+    - name: Upload the report
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: cost-gate-out/
+        retention-days: 7
+        if-no-files-found: warn

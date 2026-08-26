@@ -1,0 +1,70 @@
+# The privileged half of the cost gate.
+#
+# This workflow can write to pull requests. It therefore never checks out or executes
+# pull-request code, and treats the artifact it downloads as hostile data:
+#
+#   * the checkout is of the base branch, which is trusted, and is used only to install
+#     this tool - never the contributor's code;
+#   * the report is size-capped and validated against the artifact schema;
+#   * the comment body is re-rendered here from the validated JSON, so the uploaded
+#     Markdown never reaches a comment;
+#   * the pull request is resolved from `workflow_run.head_sha`, which GitHub sets, and
+#     the number recorded by the untrusted job is only cross-checked against it.
+#
+# `workflow_run.pull_requests` is deliberately not used: it is empty for pull requests
+# from forks, which is the case this design exists to support.
+name: cost-gate-comment
+
+on:
+  workflow_run:
+    workflows: ["cost-gate"]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: cost-gate-comment-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  comment:
+    name: Post the report to the pull request
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request'
+    permissions:
+      pull-requests: write
+      actions: read
+    steps:
+      - name: Check out the base branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Explicit: check out the branch this workflow is defined on, never the pull
+          # request's head. Downloading the contributor's code into a job holding a
+          # write token is the mistake this whole arrangement exists to avoid.
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the gate
+        run: python -m pip install --quiet .
+
+      - name: Download the report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: cost-gate-report
+          path: incoming
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Post or update the comment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          cost-gate comment \
+            --report incoming/report.json \
+            --pr-number-file incoming/pr-number.txt \
+            --head-sha "${{ github.event.workflow_run.head_sha }}"
