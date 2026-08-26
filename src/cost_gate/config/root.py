@@ -15,7 +15,9 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from cost_gate.config.budgets import BudgetsConfig
 from cost_gate.config.loader import load_model, resolve_within
+from cost_gate.config.policies import PoliciesConfig
 from cost_gate.config.usage import UsageProfileConfig
 from cost_gate.domain.money import Currency
 from cost_gate.domain.resources import ResourceContext
@@ -95,6 +97,8 @@ class LoadedConfig(BaseModel):
     root: RootConfig
     source: str
     usage: UsageProfileConfig | None = None
+    budgets: BudgetsConfig | None = None
+    policies: PoliciesConfig | None = None
     catalog_path: str = ""
 
     @property
@@ -125,6 +129,18 @@ def load_config(path: Path, *, allow_missing_references: bool = False) -> Loaded
         if usage_path.is_file() or not allow_missing_references:
             usage = load_model(UsageProfileConfig, usage_path)
 
+    budgets: BudgetsConfig | None = None
+    if root.budgets is not None:
+        budgets_path = resolve_within(base, root.budgets)
+        if budgets_path.is_file() or not allow_missing_references:
+            budgets = load_model(BudgetsConfig, budgets_path)
+
+    policies: PoliciesConfig | None = None
+    if root.policies is not None:
+        policies_path = resolve_within(base, root.policies)
+        if policies_path.is_file() or not allow_missing_references:
+            policies = load_model(PoliciesConfig, policies_path)
+
     # The pricing catalog is deliberately *not* confined to the configuration
     # directory: the usual arrangement points at a catalog elsewhere in the repository,
     # or at the copy bundled with the installed package. It is read-only data validated
@@ -141,5 +157,7 @@ def load_config(path: Path, *, allow_missing_references: bool = False) -> Loaded
         root=root,
         source=str(root_path),
         usage=usage,
+        budgets=budgets,
+        policies=policies,
         catalog_path=catalog_path,
     )

@@ -3,7 +3,7 @@
 This document is the handover note. It is updated at the end of every phase so that work can
 resume from a clean state without re-deriving decisions.
 
-**Last updated:** end of Phase 7 (2026-08-25)
+**Last updated:** end of Phase 9 (2026-08-26)
 
 ## Architecture summary
 
@@ -35,11 +35,14 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 4 | Infrastructure change engine | `9b381ec` |
 | 5 | Pricing provider framework | `25f15be` |
 | 6 | Fixed-cost AWS estimators | `e1129a5` |
-| 7 | Usage-based estimators | *(recorded at commit time)* |
+| 7 | Usage-based estimators | `43318e6` |
+| 8 | AWS Price List adapter | **skipped for now** (see below) |
+| 9 | Budget and policy engine | *(recorded at commit time)* |
 
 ## Current state of the repository
 
-The pipeline prices thirteen resource types, fixed and usage-based. **No policy
+The pipeline prices thirteen resource types and turns the result into an explainable
+gate decision. **No policy
 evaluation, budgets or reporting exists yet** — a `CostReport` is produced but nothing
 renders or gates on it. That is Phases 9 and 11.
 
@@ -147,6 +150,23 @@ Estimators (`src/cost_gate/estimators/`):
 
 CLI: `cost-gate list-supported-resources` reads the registry directly.
 
+Budgets and policies (`config/budgets.py`, `config/policies.py`, `budgets/`, `policies/`):
+
+* **Every matching budget is evaluated**, not just the most specific. Two budgets with an
+  identical scope are rejected at load time. `docs/policy-engine.md` said "most specific
+  wins" and was corrected — its own predicate table already assumed otherwise.
+* **Budget thresholds emit ordinary `PolicyEvaluation`s**, so budgets and hand-written
+  rules share one decision lattice and one explanation format. Only the most severe
+  crossed threshold is emitted per budget.
+* `Condition` is one model whose fields are the whole vocabulary, with `extra="forbid"`
+  and an exactly-one-set rule. A typo fails at load time with its path.
+* Predicate handlers receive **the argument value**, not the condition, so there is
+  nothing to narrow and no `assert` for Bandit to flag.
+* Non-matching *and* out-of-scope policies are retained with their evaluated inputs.
+* `format_percent` applies `ROUND_HALF_UP`, matching money. An f-string `:.1f` on a
+  `Decimal` rounds half-to-even, so 32.85 would display as 32.8 as a percentage and 32.85
+  as money — two roundings in one report that disagree.
+
 `yaml_bounds.py` (top level, outside the layer contract) holds the loader bounds shared by
 config and template parsing, including **duplicate-key rejection**.
 
@@ -154,7 +174,7 @@ Also: `schemas/` (4 generated files), `examples/config/` (annotated sample confi
 `tests/fixtures/templates/` (intrinsics fixture in YAML with a generated JSON sibling, plus a
 CDK-style multi-stack directory), `cost-gate validate-config` and `cost-gate schema export`.
 
-Still absent: `policies/`, `budgets/`,
+Still absent:
 `recommendations/`, `reporting/`, `adapters/`, `observability/`, the pricing catalog,
 budget/policy configuration models, `infrastructure/`.
 
@@ -232,8 +252,8 @@ python -m cost_gate.cli.main validate-config --config examples/config/cost-gate.
 python -m cost_gate.cli.main schema export --out schemas
 ```
 
-Last full run (Phase 7): Ruff clean, mypy strict clean over 52 files, import-linter 2 contracts
-kept, **764 tests passed**, pip-audit reports no known vulnerabilities, safety checker green.
+Last full run (Phase 9): Ruff clean, mypy strict clean over 58 files, import-linter 2 contracts
+kept, **858 tests passed**, pip-audit reports no known vulnerabilities, safety checker green.
 A clean-install check confirms the wheel ships both the curated resource metadata and the
 pricing catalog, and that `cost-gate pricing verify` passes against the packaged copy.
 
@@ -245,8 +265,12 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
   driver models them, and inventing one would be worse than saying so.
 * Tiered pricing is charged at the first tier throughout, so high volumes are overstated.
   Stated in every affected component's confidence reasons and in the manifest.
-* Nothing renders or gates on the report yet. `estimate_graphs` returns a `CostReport`
-  that no CLI command currently exposes; that is Phases 9 and 11.
+* **Nothing renders the decision yet.** The engine produces a `GateDecision`, but no CLI
+  command runs the pipeline end to end and no report is written. That is Phase 11, and it
+  is the single most valuable thing left.
+* Phase 8 (the AWS Price List adapter) was skipped: it needs no credentials to build but
+  produces no user-visible capability, and the catalog it would refresh already works.
+  Return to it after Phase 11.
 * `AWS::RDS::DBCluster` is deferred; it produces a visible unknown.
 * **The bundled rates are approximate and unverified.** They are adequate for demonstrating
   the mechanism and for deterministic tests, and for nothing else. Phase 8 replaces them.
@@ -273,37 +297,27 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
 
 ## Exact recommended next action
 
-**Phase 8 is deliberately skippable; Phase 9 is the one that makes the tool a gate.**
+**Phase 11 — reporting and the `analyze` command.** Everything the pipeline needs exists;
+nothing joins it up. This is the phase that makes the project demonstrable.
 
-Phase 8 (the AWS Price List adapter) needs no AWS credentials to build — it is verified
-with botocore's `Stubber` — but it produces no user-visible capability on its own, and
-the catalog it would refresh is already usable. Phase 9 turns an estimate into a
-decision, which is the point of the project. Either order works; Phase 9 is the higher
-value.
+* `src/cost_gate/reporting/` — a console renderer (Rich), a versioned JSON renderer
+  (`schema_version`, and `report.schema.json` is already generated), and a Markdown
+  renderer for pull requests.
+* **Escaping is not optional.** Logical IDs, tag values and intrinsic expressions are
+  attacker-influenced and end up in a pull-request comment. One central escaper:
+  backticks, pipes, angle brackets, `@` mentions, control characters, with a length cap.
+  Test it with a template whose logical ID is `<img src=x onerror=...>`.
+* Reconciliation checks before rendering: `current + delta == proposed`,
+  `fixed + usage == delta`, every unknown counted, every `REMOVE` non-positive. A failure
+  is `ERROR` (30), not a warning — printing a report that does not add up is worse than
+  refusing to print one.
+* `cost-gate analyze --baseline X --proposed Y [--config ...] [--output-json ...]
+  [--output-markdown ...] [--fail-on ...]`, returning the documented exit codes.
+* `cost-gate explain-estimate --report r.json --resource Foo` and `explain-decision`.
 
-**Phase 9 — budget and policy engine.** In `src/cost_gate/config/` add the budget and
-policy models (deferred from Phase 2 so they arrive with their engine), then
-`src/cost_gate/budgets/` and `src/cost_gate/policies/`.
+Determinism is the hard requirement: same input, byte-identical output. Time and run ids
+must come from an injected clock, and golden files must be written with `newline="
+"`
+because `core.autocrlf` is on here.
 
-* Budget scope matching on `application`/`environment`/`team`/`cost_centre`; most specific
-  wins; an exact tie between two equally-specific budgets is a **configuration error**, not
-  a tie-break, or the outcome would depend on file order.
-* `BudgetEvaluation` already exists in the domain and keeps `estimated_infrastructure_*`,
-  `baseline_actual_monthly` and `forecast_monthly` in separate fields. Keep them separate:
-  conflating an estimate with an actual is how cost tooling loses credibility. `basis`
-  records which figure utilisation was computed against.
-* The policy predicate grammar is a **closed, typed discriminated union** with
-  `extra="forbid"` (ADR 0006). No `eval`, no expression language. A typo such as
-  `monthly_cost_delta_greater_then` must fail at load time with a path-precise error: a
-  policy that silently never fires is worse than no policy, because it provides false
-  assurance.
-* Decision precedence is `combine_results`, which already exists and is already
-  property-tested for order-independence and non-downgrade. The engine only has to feed it.
-* Every `PolicyEvaluation` retains its `evaluated_inputs` even when it did not match —
-  "why did this rule not fire?" is the question asked after an incident.
-
-Tests: order-independence and no-downgrade over generated policy lists; a matched
-`REQUIRE_APPROVAL` without an `approver_group` rejected; two equally-specific budgets
-rejected; and the exit-code mapping end to end.
-
-Commit message: `feat: add explainable budget and policy gates`
+Commit message: `feat: expose deployment gate through cli and reports`

@@ -11,8 +11,22 @@ it.
 
 from __future__ import annotations
 
+from cost_gate.config.budgets import (
+    BudgetDefinition,
+    BudgetsConfig,
+    BudgetScope,
+    BudgetThresholds,
+)
 from cost_gate.config.errors import ConfigError, ConfigIssue, DocumentError, DocumentIssue
 from cost_gate.config.loader import load_model, load_yaml_file, resolve_within
+from cost_gate.config.money_value import MoneyValue, Percent
+from cost_gate.config.policies import (
+    CONDITION_KEYS,
+    Condition,
+    PoliciesConfig,
+    PolicyDefinition,
+    PolicyScope,
+)
 from cost_gate.config.root import LoadedConfig, PricingConfig, RootConfig, load_config
 from cost_gate.config.schema import SCHEMA_VERSION, exported_schemas, write_schemas
 from cost_gate.config.usage import (
@@ -25,14 +39,25 @@ from cost_gate.config.usage import (
 )
 
 __all__ = [
+    "CONDITION_KEYS",
     "DRIVER_NAMES",
     "SCHEMA_VERSION",
+    "BudgetDefinition",
+    "BudgetScope",
+    "BudgetThresholds",
+    "BudgetsConfig",
+    "Condition",
     "ConfigError",
     "ConfigIssue",
     "DocumentError",
     "DocumentIssue",
     "EnvironmentUsage",
     "LoadedConfig",
+    "MoneyValue",
+    "Percent",
+    "PoliciesConfig",
+    "PolicyDefinition",
+    "PolicyScope",
     "PricingConfig",
     "Quantity",
     "ResolvedDriver",

@@ -1,0 +1,290 @@
+{
+  "$defs": {
+    "BudgetDefinition": {
+      "additionalProperties": false,
+      "description": "One budget.",
+      "properties": {
+        "approver_group": {
+          "default": "finops",
+          "title": "Approver Group",
+          "type": "string"
+        },
+        "baseline_actual_monthly": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MoneyValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "forecast_monthly": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MoneyValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "increase_action": {
+          "$ref": "#/$defs/PolicyAction",
+          "default": "REQUIRE_APPROVAL"
+        },
+        "maximum_monthly_increase": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MoneyValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "monthly_limit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MoneyValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "scope": {
+          "$ref": "#/$defs/BudgetScope"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity",
+          "default": "MEDIUM"
+        },
+        "thresholds": {
+          "$ref": "#/$defs/BudgetThresholds"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "BudgetDefinition",
+      "type": "object"
+    },
+    "BudgetScope": {
+      "additionalProperties": false,
+      "description": "Which resources a budget covers.\n\nAn empty scope covers everything, which is how an organisation-wide budget is\nwritten.",
+      "properties": {
+        "application": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Application"
+        },
+        "cost_centre": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cost Centre"
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Environment"
+        },
+        "team": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team"
+        }
+      },
+      "title": "BudgetScope",
+      "type": "object"
+    },
+    "BudgetThresholds": {
+      "additionalProperties": false,
+      "description": "What should happen as a budget fills up.",
+      "properties": {
+        "approval_percent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "blocking_percent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "warning_percent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "BudgetThresholds",
+      "type": "object"
+    },
+    "Currency": {
+      "description": "Supported currencies.\n\nThe MVP pricing catalog is USD only. The enum exists so that adding a currency is a\ndata change rather than a refactor of every monetary field.",
+      "enum": [
+        "USD"
+      ],
+      "title": "Currency",
+      "type": "string"
+    },
+    "MoneyValue": {
+      "additionalProperties": false,
+      "description": "A monetary amount from a configuration file.",
+      "properties": {
+        "amount": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Amount"
+        },
+        "currency": {
+          "$ref": "#/$defs/Currency",
+          "default": "USD"
+        }
+      },
+      "required": [
+        "amount"
+      ],
+      "title": "MoneyValue",
+      "type": "object"
+    },
+    "Percent": {
+      "additionalProperties": false,
+      "description": "A percentage threshold.\n\nAllowed to exceed 100: a blocking threshold of ``110`` means \"block once the\nforecast is 10 % over budget\", which is a legitimate thing to configure.",
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "Percent",
+      "type": "object"
+    },
+    "PolicyAction": {
+      "description": "What a matched policy asks the gate to do.\n\nA strict subset of :class:`GateResult`: a policy can never produce ``PASS``\n(a policy that matched has something to say) nor ``ERROR`` (that is the engine\nreporting its own failure, not a rule firing).",
+      "enum": [
+        "WARN",
+        "REQUIRE_APPROVAL",
+        "BLOCK"
+      ],
+      "title": "PolicyAction",
+      "type": "string"
+    },
+    "Severity": {
+      "description": "How serious a matched policy considers its finding.\n\nSeverity orders the *presentation* of findings. It never affects the decision:\nonly :class:`PolicyAction` does that. A ``low``-severity ``BLOCK`` still blocks.",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "$id": "https://github.com/lapczyna/aws-cost-aware-deployment-gate/schemas/v1/budgets.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The contents of a budgets file.",
+  "properties": {
+    "budgets": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/BudgetDefinition"
+      },
+      "title": "Budgets",
+      "type": "array"
+    },
+    "version": {
+      "const": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "title": "cost-gate budgets",
+  "type": "object",
+  "x-cost-gate-schema-version": "1",
+  "x-generated-from": "cost_gate.config.budgets.BudgetsConfig",
+  "x-mode": "validation"
+}

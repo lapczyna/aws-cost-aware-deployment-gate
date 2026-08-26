@@ -1,0 +1,45 @@
+# Budgets.
+#
+# Every budget whose scope matches is evaluated. There is no "most specific wins": an
+# application budget and an organisation-wide budget can both apply to one change, and
+# a gate that quietly ignored one of them would be worse than one reporting both.
+#
+# Two budgets with an identical scope are rejected at load time, because the same
+# resources would then count against two limits that nothing could tell apart.
+version: 1
+
+budgets:
+  - id: payments-production-monthly
+    description: Payments production monthly budget
+    scope:
+      application: payments
+      environment: production
+    monthly_limit: 2000
+
+    # Thresholds become policy actions: warning -> WARN, approval -> REQUIRE_APPROVAL,
+    # blocking -> BLOCK. They must be listed from least to most severe.
+    thresholds:
+      warning_percent: 80
+      approval_percent: 90
+      blocking_percent: 110
+
+    approver_group: finops
+    severity: HIGH
+
+    # Supplied from billing, never computed by this tool. When present, utilisation is
+    # measured against actual spend plus the estimated change, which is far more
+    # realistic than a template estimate on its own - and the report says which basis
+    # it used.
+    baseline_actual_monthly: 1650
+
+    # A projection supplied from elsewhere. This tool estimates; it does not forecast.
+    # Kept in its own field so a report can never present one as the other.
+    forecast_monthly: 1740
+
+  - id: pull-request-cost-increase
+    description: Any single development change above $100 needs a second opinion
+    scope:
+      environment: development
+    maximum_monthly_increase: 100
+    increase_action: REQUIRE_APPROVAL
+    approver_group: finops

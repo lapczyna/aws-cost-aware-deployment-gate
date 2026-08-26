@@ -20,6 +20,8 @@ from typing import Any, Final
 
 from pydantic import BaseModel
 
+from cost_gate.config.budgets import BudgetsConfig
+from cost_gate.config.policies import PoliciesConfig
 from cost_gate.config.root import RootConfig
 from cost_gate.config.usage import UsageProfileConfig
 from cost_gate.domain.cost import CostReport
@@ -69,6 +71,8 @@ class SchemaSpec:
 SCHEMAS: Final[tuple[SchemaSpec, ...]] = (
     SchemaSpec("cost-gate.schema.json", RootConfig, "validation", "cost-gate root configuration"),
     SchemaSpec("usage.schema.json", UsageProfileConfig, "validation", "cost-gate usage profile"),
+    SchemaSpec("budgets.schema.json", BudgetsConfig, "validation", "cost-gate budgets"),
+    SchemaSpec("policies.schema.json", PoliciesConfig, "validation", "cost-gate policies"),
     SchemaSpec("report.schema.json", CostReport, "serialization", "cost-gate cost report"),
     SchemaSpec("decision.schema.json", GateDecision, "serialization", "cost-gate gate decision"),
 )

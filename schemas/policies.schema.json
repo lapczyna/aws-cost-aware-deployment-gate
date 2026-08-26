@@ -1,0 +1,423 @@
+{
+  "$defs": {
+    "Condition": {
+      "additionalProperties": false,
+      "description": "One condition: a combinator, or a single predicate.\n\nModelled as a mapping of optional fields with ``extra=\"forbid\"`` and an\nexactly-one-set rule. That gives three things at once: an unknown key is rejected\nwith its path, a wrong argument type is rejected with its path, and the whole\nvocabulary is discoverable from the generated JSON Schema.",
+      "properties": {
+        "added_resource_types": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Added Resource Types"
+        },
+        "all_of": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Condition"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "All Of"
+        },
+        "any_of": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Condition"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Any Of"
+        },
+        "budget_increase_exceeds": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MoneyValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "budget_utilization_percent_greater_than": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "confidence_at_most": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Confidence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "monthly_cost_delta_greater_than": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MoneyValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "monthly_cost_delta_percent_greater_than": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "not": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Condition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "one_time_cost_greater_than": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MoneyValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "region_not_in": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Not In"
+        },
+        "removed_resource_types": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Removed Resource Types"
+        },
+        "replaced_resource_types": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replaced Resource Types"
+        },
+        "required_tags_missing": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Required Tags Missing"
+        },
+        "unknown_component_count_greater_than": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unknown Component Count Greater Than"
+        },
+        "unknown_resource_types": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unknown Resource Types"
+        }
+      },
+      "title": "Condition",
+      "type": "object"
+    },
+    "Confidence": {
+      "description": "How much the estimate for a component can be relied upon.\n\nAssigned from the documented table in ``docs/domain-model.md`` and always\naccompanied by human-readable reasons. Never assigned ad hoc.",
+      "enum": [
+        "UNKNOWN",
+        "LOW",
+        "MEDIUM",
+        "HIGH"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "Currency": {
+      "description": "Supported currencies.\n\nThe MVP pricing catalog is USD only. The enum exists so that adding a currency is a\ndata change rather than a refactor of every monetary field.",
+      "enum": [
+        "USD"
+      ],
+      "title": "Currency",
+      "type": "string"
+    },
+    "MoneyValue": {
+      "additionalProperties": false,
+      "description": "A monetary amount from a configuration file.",
+      "properties": {
+        "amount": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Amount"
+        },
+        "currency": {
+          "$ref": "#/$defs/Currency",
+          "default": "USD"
+        }
+      },
+      "required": [
+        "amount"
+      ],
+      "title": "MoneyValue",
+      "type": "object"
+    },
+    "Percent": {
+      "additionalProperties": false,
+      "description": "A percentage threshold.\n\nAllowed to exceed 100: a blocking threshold of ``110`` means \"block once the\nforecast is 10 % over budget\", which is a legitimate thing to configure.",
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "Percent",
+      "type": "object"
+    },
+    "PolicyAction": {
+      "description": "What a matched policy asks the gate to do.\n\nA strict subset of :class:`GateResult`: a policy can never produce ``PASS``\n(a policy that matched has something to say) nor ``ERROR`` (that is the engine\nreporting its own failure, not a rule firing).",
+      "enum": [
+        "WARN",
+        "REQUIRE_APPROVAL",
+        "BLOCK"
+      ],
+      "title": "PolicyAction",
+      "type": "string"
+    },
+    "PolicyDefinition": {
+      "additionalProperties": false,
+      "description": "One policy.",
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/PolicyAction"
+        },
+        "approver_group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approver Group"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/PolicyScope"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity",
+          "default": "MEDIUM"
+        },
+        "when": {
+          "$ref": "#/$defs/Condition"
+        }
+      },
+      "required": [
+        "id",
+        "when",
+        "action"
+      ],
+      "title": "PolicyDefinition",
+      "type": "object"
+    },
+    "PolicyScope": {
+      "additionalProperties": false,
+      "description": "Which changes a policy applies to.\n\nAn empty scope applies everywhere. Scoping is by environment rather than by\nresource, because a policy is a statement about a deployment target.",
+      "properties": {
+        "applications": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Applications"
+        },
+        "environments": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Environments"
+        }
+      },
+      "title": "PolicyScope",
+      "type": "object"
+    },
+    "Severity": {
+      "description": "How serious a matched policy considers its finding.\n\nSeverity orders the *presentation* of findings. It never affects the decision:\nonly :class:`PolicyAction` does that. A ``low``-severity ``BLOCK`` still blocks.",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "$id": "https://github.com/lapczyna/aws-cost-aware-deployment-gate/schemas/v1/policies.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The contents of a policies file.",
+  "properties": {
+    "policies": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PolicyDefinition"
+      },
+      "title": "Policies",
+      "type": "array"
+    },
+    "version": {
+      "const": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "title": "cost-gate policies",
+  "type": "object",
+  "x-cost-gate-schema-version": "1",
+  "x-generated-from": "cost_gate.config.policies.PoliciesConfig",
+  "x-mode": "validation"
+}

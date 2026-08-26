@@ -109,6 +109,23 @@ def validate_config(
     else:
         console.print("  usage profile    (none configured)")
 
+    if loaded.budgets is not None:
+        console.print(f"  budgets          {len(loaded.budgets.budgets)} defined")
+        for budget in loaded.budgets.budgets:
+            scope = ", ".join(f"{k}={v}" for k, v in budget.scope.as_dict().items())
+            console.print(f"                   - {budget.id} ({scope or 'everything'})")
+    else:
+        console.print("  budgets          (none configured)")
+
+    if loaded.policies is not None:
+        console.print(f"  policies         {len(loaded.policies.policies)} defined")
+        for policy in loaded.policies.policies:
+            console.print(
+                f"                   - {policy.id}: {policy.when.predicate} -> {policy.action}"
+            )
+    else:
+        console.print("  policies         (none configured)")
+
 
 @app.command("list-supported-resources")
 def list_supported_resources(

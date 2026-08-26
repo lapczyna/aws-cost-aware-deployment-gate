@@ -1,0 +1,75 @@
+# Policy as code.
+#
+# The predicate vocabulary is closed and typed. There is no expression language and no
+# eval: a condition names exactly one recognised predicate, and a misspelling fails at
+# load time rather than producing a rule that silently never fires. A policy that never
+# fires is worse than no policy, because it provides false assurance.
+#
+# Conditions combine with all_of, any_of and not.
+version: 1
+
+policies:
+  - id: expensive-development-change
+    description: Development changes above $100 per month require FinOps approval
+    scope:
+      environments: [development]
+    when:
+      monthly_cost_delta_greater_than: 100
+    action: REQUIRE_APPROVAL
+    severity: MEDIUM
+    approver_group: finops
+
+  - id: nat-gateway-in-development
+    description: A new NAT Gateway in development requires architecture review
+    scope:
+      environments: [development]
+    when:
+      added_resource_types:
+        - AWS::EC2::NatGateway
+    action: REQUIRE_APPROVAL
+    severity: HIGH
+    approver_group: platform-architecture
+
+  - id: unresolved-expensive-resource
+    description: Production will not accept an expensive resource whose cost is unknown
+    scope:
+      environments: [production]
+    when:
+      unknown_resource_types:
+        - AWS::EKS::Cluster
+        - AWS::RDS::DBInstance
+        - AWS::ElasticLoadBalancingV2::LoadBalancer
+    action: BLOCK
+    severity: HIGH
+
+  - id: production-replacement
+    description: Replacing a database in production requires approval, whatever it costs
+    scope:
+      environments: [production]
+    when:
+      replaced_resource_types:
+        - AWS::RDS::DBInstance
+    action: REQUIRE_APPROVAL
+    severity: HIGH
+    approver_group: platform-architecture
+
+  - id: untagged-resources
+    description: New resources must carry ownership tags
+    when:
+      required_tags_missing:
+        - Environment
+        - Application
+    action: WARN
+    severity: LOW
+
+  - id: large-low-confidence-change
+    description: >-
+      A large change the tool is not confident about warrants a human read, since the
+      number driving the decision may not be reliable.
+    when:
+      all_of:
+        - monthly_cost_delta_greater_than: 500
+        - confidence_at_most: LOW
+    action: REQUIRE_APPROVAL
+    severity: MEDIUM
+    approver_group: finops

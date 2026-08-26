@@ -20,8 +20,8 @@ application: payments
 team: payments-platform
 
 usage_profile: usage.yaml
-# budgets: budgets.yaml     # added in Phase 9
-# policies: policies.yaml   # added in Phase 9
+budgets: budgets.yaml
+policies: policies.yaml
 
 pricing:
   # `fixtures` is the deterministic offline catalog and the only provider that works

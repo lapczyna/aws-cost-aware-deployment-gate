@@ -15,7 +15,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 6 | Fixed-cost AWS estimators | done | see git log |
 | 7 | Usage-based estimators | done | see git log |
 | 8 | AWS Price List adapter (optional provider) | planned | |
-| 9 | Budget and policy engine | planned | |
+| 9 | Budget and policy engine | done | see git log |
 | 10 | FinOps recommendation engine | planned | |
 | 11 | Reporting and CLI | planned | |
 | 12 | End-to-end demo scenarios | planned | |

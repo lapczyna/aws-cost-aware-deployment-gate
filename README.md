@@ -4,7 +4,7 @@ A CI/CD gate that estimates the monthly AWS cost impact of an infrastructure cha
 is deployed**, evaluates it against version-controlled budgets and policies, and returns an
 explainable decision on the pull request.
 
-> **Project status: Phase 7 — the pipeline prices thirteen AWS resource types, fixed and usage-based.**
+> **Project status: Phase 9 — estimates now become explainable gate decisions. Reporting and the CLI `analyze` command are next.**
 > This README is a skeleton. Sections marked *(pending)* are completed in later phases, and all
 > sample reports will be generated artifacts rather than hand-written illustrations.
 

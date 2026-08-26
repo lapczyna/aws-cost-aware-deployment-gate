@@ -41,12 +41,32 @@ budgets:
 
 ### Scope matching
 
-Scope keys are `application`, `environment`, `team`, `cost_centre`. A budget matches a change
-when every key it specifies equals the corresponding value in the resource context. **The most
-specific match wins**, specificity being the number of keys.
+Scope keys are `application`, `environment`, `team`, `cost_centre`. A budget covers a resource
+when every key it specifies equals the corresponding value in that resource's context, and its
+totals are the sum of the components belonging to the resources it covers.
 
-An exact tie between two equally-specific budgets is a **configuration error**, not a
-tie-break. Silently picking one would mean the gate's behaviour depended on file ordering.
+**Every matching budget is evaluated.** There is no "most specific wins": an application budget
+and an organisation-wide budget can both apply to one change, and both should be checked. A
+gate that quietly ignored one of them would be worse than one reporting both — and the
+predicate vocabulary already assumes this, since `budget_utilization_percent_greater_than` asks
+whether *any* matched budget is over.
+
+Two budgets with an **identical scope** are rejected at load time. The same resources would
+then count against two limits that nothing could tell apart, and which one a reader should act
+on would depend on file ordering.
+
+A resource with no attribution does not match a narrowly-scoped budget. An unattributed
+resource is not evidence of belonging anywhere.
+
+### Thresholds are policies
+
+A budget with an `approval_percent` of 90 *is* a policy: "require approval past 90 %". The
+budget engine therefore emits an ordinary `PolicyEvaluation`, and the decision lattice combines
+it with hand-written rules. One decision path, one explanation format, and no special case in
+the reporting layer.
+
+Only the most severe crossed threshold is emitted per budget: three lines saying warning,
+approval and blocking were all crossed is three ways of saying the same thing.
 
 ### What a budget evaluation contains
 
@@ -69,8 +89,9 @@ class BudgetEvaluation(BaseModel, frozen=True):
 The four money fields are kept apart on purpose. Conflating "the estimated cost of the
 resources in this template" with "what this application actually costs" is the most common way
 cost tooling loses credibility. If `baseline_actual_monthly` is supplied, utilisation is
-computed against `baseline_actual + estimated_delta` and the report says so; if it is not,
-utilisation is computed against the template estimate alone and the report says *that*.
+computed against `baseline_actual + estimated_delta`; if it is not, it is computed against the
+template estimate alone. The `basis` field records which, and the rendered reason says it in
+words, because the same percentage means very different things under the two.
 
 ## 3. Policies
 
@@ -124,10 +145,17 @@ policies:
 | `required_tags_missing` | list of tag keys | An added resource lacks any listed tag |
 | `region_not_in` | list of regions | A resource targets a region outside the list |
 
-Combinators: `all_of`, `any_of`, `not`. Each predicate is a Pydantic model in a discriminated
-union with `extra="forbid"`, so a typo such as `monthly_cost_delta_greater_then` fails at load
-time with a path-precise error instead of silently never matching. **A policy that never
-matches because of a typo is worse than no policy at all** — it provides false assurance.
+Also `one_time_cost_greater_than`. Combinators: `all_of`, `any_of`, `not`.
+
+A condition is one Pydantic model whose fields are the whole vocabulary, with
+`extra="forbid"` and an exactly-one-set rule. That buys three things at once: an unknown key is
+rejected with its path, a wrong argument type is rejected with its path, and the vocabulary is
+discoverable from the generated JSON Schema. A typo such as `monthly_cost_delta_greater_then`
+fails at load time. **A policy that never matches because of a typo is worse than no policy at
+all** — it provides false assurance.
+
+Neither combinator short-circuits. Evaluation is pure and cheap, and evaluating every child
+means the report can say what each one concluded rather than only what decided the outcome.
 
 ### Evaluation output
 
