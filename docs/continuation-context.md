@@ -44,7 +44,8 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 13 | CDK integration | `50cc39e` |
 | 14 | GitHub pull-request integration | `c35aea2` |
 | 15 | Approval and deployment safeguards | `1214314` |
-| 16 | Optional serverless AWS infrastructure (synth only) | *(recorded at commit time)* |
+| 16 | Optional serverless AWS infrastructure (synth only) | `c10f92f` |
+| 17 | Actual-cost feedback prototype | *(recorded at commit time)* |
 
 ## Current state of the repository
 
@@ -238,8 +239,16 @@ deployed**. Its committed templates are analysed by the gate itself
 (`tests/e2e/test_infrastructure.py`), which is what found the two defects below. Costs
 $0.21/month with **$0.00 fixed**; see `docs/infrastructure.md`.
 
+`feedback/` (Phase 17) — `records.py`, `providers.py`, `accuracy.py`. Compares
+predictions against observed cost and reports a **signed distribution per service**,
+never an "accuracy percentage". Pairs that cannot honestly be compared are excluded and
+named. It never blocks anything. `FixtureObservationProvider` is the default and the
+only one CI exercises; `CostExplorerObservationProvider` is optional and tested against
+a fake client.
+
 Still absent:
-`recommendations/`, `observability/`, and the AWS Price List adapter.
+`recommendations/`, `observability/`, and the AWS Price List adapter (Phase 8, skipped
+deliberately - the offline catalog is the default provider so nothing depends on it).
 
 ## Environment facts that affect implementation
 
@@ -429,7 +438,17 @@ Still absent:
     overrides for resources absent from any one change. It now goes to the console and
     the JSON artifact only — the surfaces where someone debugging a config is already
     looking. The PR comment is scarce, high-attention space.
-54. `git checkout -- <path>` silently does nothing for an **untracked** file. When
+54. **`assert` vanishes under `python -O`**, so it must not guard an invariant in
+    library code. Bandit B101 caught two. One of them was not even guaranteed: the
+    accuracy headline asserted a median existed whenever there were enough comparisons,
+    but every prediction being zero produces enough comparisons and no median.
+55. An accuracy figure needs three separate refusals to overclaim, and all three are
+    load-bearing: **signed** error (a tool 20% high everywhere and one that is high half
+    the time have identical absolute error and different problems); a **distribution**
+    rather than a number; and **no distribution at all** below five comparable pairs.
+56. Cost Explorer **charges per request**. Querying once per prediction would put a line
+    item on the bill this tool exists to watch, so the adapter fetches once per window.
+57. `git checkout -- <path>` silently does nothing for an **untracked** file. When
     probing whether a test really fails, revert the probe explicitly and re-check.
 
 ## Verification commands
@@ -486,32 +505,31 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
 
 ## Exact recommended next action
 
-**Phase 17 — comparing predicted and observed cost.** The last substantial feature.
+**Phase 18 — portfolio and production-readiness review.** The last phase. It is a review,
+not a feature: the job is to verify that every claim the repository makes is true, and to
+fix or retract the ones that are not.
 
-* A `PredictionRecord`: what was estimated, for which change, at which fingerprint
-  (`approvals.decision_fingerprint` already produces a stable identity for exactly
-  this). `infrastructure/` already models the DynamoDB table it would live in.
-* A **deterministic demo feedback provider** first, so the accuracy machinery can be
-  tested offline like everything else. A Cost Explorer adapter second, and only behind
-  the same optional-dependency pattern as the Price List adapter.
-* Accuracy metrics that do not overclaim: report the distribution of prediction error,
-  not a single "accuracy percentage".
-* **This must never block anything.** An accuracy figure is feedback for improving
-  estimators, not a gate. Wiring it into a decision would make the tool's own error
-  budget into someone else's deployment failure.
-* Document the attribution caveats honestly and prominently: billing data lags up to
-  24 hours; cost allocation tags only apply from the moment they are activated; shared
-  costs, credits, taxes and Savings Plan amortisation mean an IaC estimate can never
-  equal a line on the bill. `docs/infrastructure.md` and the approval runbook already
-  say versions of this — reuse the wording rather than inventing new claims.
+* **Verify every claim in the README against the code.** Each feature listed must exist
+  and be demonstrable by a command a reader can run. Anything aspirational gets moved to
+  the roadmap or deleted.
+* **Clean-checkout verification.** Clone into an empty directory, `pip install -e .[dev]`,
+  run `dev.py all`, run the demo. Nothing may depend on state only this machine has.
+* **Gap analysis, written down.** What a reviewer would criticise, stated before they
+  have to: Phase 8 skipped, Phase 10 (recommendations) never built, no real pull request
+  ever exercised the GitHub integration, nothing ever deployed, pricing fixtures are
+  hand-curated and illustrative.
+* Grep for `TODO`, `FIXME`, `pending`, `(later phase)` and either implement, delete or
+  convert each into an honest roadmap entry.
+* Regenerate every generated artifact (`dev.py docs`, `golden --update`, `synth`,
+  `schema export`) and confirm the diff is empty.
+* Consider whether Phase 10 is worth building or worth formally dropping. The roadmap
+  currently says "planned", which after eighteen phases is not credible.
 
-Things Phase 16 established that Phase 17 depends on:
+Things Phase 17 established:
 
-* `AnalysisArtifact.warnings` exists for advisories that are about the configuration
-  rather than the change, and is deliberately kept out of the pull-request comment.
-* `dev.py synth` regenerates `examples/cdk/synthesized/`, the CDK demo scenario and
-  `infrastructure/synthesized/` together, so they cannot drift.
-* `tests/fixtures/empty-stacks/` is the "before" snapshot for analysing infrastructure
-  that does not exist yet.
+* `docs/actual-cost-feedback.md` carries the attribution caveats. Reuse that wording
+  rather than inventing new claims about billing accuracy.
+* The three "never" properties to preserve in any final edit: unknowns are never zero,
+  a BLOCK is never approvable, and accuracy never blocks a build.
 
-Commit message: `feat: compare predicted and observed cloud costs`
+Commit message: `docs: complete portfolio documentation and final review`

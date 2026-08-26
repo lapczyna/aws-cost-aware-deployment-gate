@@ -23,7 +23,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 14 | GitHub pull-request integration | done | see git log |
 | 15 | Approval and deployment safeguards | done | see git log |
 | 16 | Optional serverless AWS infrastructure (synth only) | done | never deployed |
-| 17 | Actual-cost feedback prototype | planned | |
+| 17 | Actual-cost feedback prototype | done | see git log |
 | 18 | Portfolio and production-readiness review | planned | |
 
 Phases 0–14 constitute the MVP. Phases 15–18 are secondary and may be reordered.

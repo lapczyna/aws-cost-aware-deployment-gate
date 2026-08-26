@@ -1,0 +1,91 @@
+# What the (fictional) bill said, for the accuracy demonstration.
+#
+# Illustrative, and labelled non-authoritative everywhere it is reported. The awkward
+# cases are here on purpose: a change never deployed, a window that has not settled,
+# tags activated after deployment, a service billed that was never predicted. Those are
+# what the accuracy arithmetic has to get right, and a happy-path fixture would never
+# reach them.
+version: 1
+
+observations:
+  # A good prediction. NAT Gateway hours were close; data processing was not predicted
+  # at all - it was one of the three unknowns - and shows up in the bill.
+  - fingerprint: aaaa1111aaaa1111aaaa1111aaaa1111
+    observed_at: 2026-03-02T06:00:00Z
+    window_start: 2026-02-01
+    window_end: 2026-03-01
+    observed_monthly_amount: {amount: "71.18", currency: USD}
+    services:
+      - {service: AmazonVPC, monthly_amount: {amount: "44.10", currency: USD}}
+      - {service: AWSELB, monthly_amount: {amount: "17.20", currency: USD}}
+      - {service: AmazonRDS, monthly_amount: {amount: "9.88", currency: USD}}
+
+  # Multi-AZ RDS came in under the estimate: the instance was stopped for part of the
+  # month, which no template can express.
+  - fingerprint: bbbb2222bbbb2222bbbb2222bbbb2222
+    observed_at: 2026-03-02T06:00:00Z
+    window_start: 2026-02-01
+    window_end: 2026-03-01
+    observed_monthly_amount: {amount: "104.55", currency: USD}
+    services:
+      - {service: AmazonRDS, monthly_amount: {amount: "104.55", currency: USD}}
+
+  - fingerprint: cccc3333cccc3333cccc3333cccc3333
+    observed_at: 2026-03-02T06:00:00Z
+    window_start: 2026-02-01
+    window_end: 2026-03-01
+    observed_monthly_amount: {amount: "19.02", currency: USD}
+    services:
+      - {service: AmazonEC2, monthly_amount: {amount: "19.02", currency: USD}}
+
+  # S3 storage grew faster than the configured assumption. This is the shape of finding
+  # the whole loop exists to surface.
+  - fingerprint: dddd4444dddd4444dddd4444dddd4444
+    observed_at: 2026-03-02T06:00:00Z
+    window_start: 2026-02-01
+    window_end: 2026-03-01
+    observed_monthly_amount: {amount: "61.40", currency: USD}
+    services:
+      - {service: AmazonS3, monthly_amount: {amount: "24.90", currency: USD}}
+      - {service: AmazonRDS, monthly_amount: {amount: "33.60", currency: USD}}
+      # Billed but never predicted: CloudWatch charges the function generated. It is
+      # reported, and does not enter the per-service distribution, because it is an
+      # attribution finding rather than an estimator being wrong.
+      - {service: AmazonCloudWatch, monthly_amount: {amount: "2.90", currency: USD}}
+
+  - fingerprint: eeee5555eeee5555eeee5555eeee5555
+    observed_at: 2026-03-02T06:00:00Z
+    window_start: 2026-02-01
+    window_end: 2026-03-01
+    observed_monthly_amount: {amount: "6.95", currency: USD}
+    services:
+      - {service: AWSLambda, monthly_amount: {amount: "6.95", currency: USD}}
+
+  - fingerprint: ffff6666ffff6666ffff6666ffff6666
+    observed_at: 2026-03-02T06:00:00Z
+    window_start: 2026-02-01
+    window_end: 2026-03-01
+    observed_monthly_amount: {amount: "196.30", currency: USD}
+    services:
+      - {service: AmazonEC2, monthly_amount: {amount: "196.30", currency: USD}}
+
+  - fingerprint: 1111aaaa1111aaaa1111aaaa1111aaaa
+    observed_at: 2026-03-02T06:00:00Z
+    window_start: 2026-02-01
+    window_end: 2026-03-01
+    observed_monthly_amount: {amount: "0.00", currency: USD}
+    comparability: not_deployed
+    detail: >-
+      the change was approved and then abandoned; no EKS cluster was ever created, so
+      there is nothing to compare
+
+  - fingerprint: 2222bbbb2222bbbb2222bbbb2222bbbb
+    observed_at: 2026-03-02T06:00:00Z
+    window_start: 2026-02-01
+    window_end: 2026-03-01
+    observed_monthly_amount: {amount: "41.00", currency: USD}
+    comparability: tags_not_active
+    detail: >-
+      cost allocation tags were activated on 2026-02-15, two weeks after deployment, so
+      the first half of the window is invisible to attribution and the observed figure
+      is lower than what was actually spent

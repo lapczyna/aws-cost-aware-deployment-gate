@@ -4,7 +4,7 @@ A CI/CD gate that estimates the monthly AWS cost impact of an infrastructure cha
 is deployed**, evaluates it against version-controlled budgets and policies, and returns an
 explainable decision on the pull request.
 
-> **Project status: Phase 16 — the gate now analyses its own optional infrastructure, which costs $0.21/month with no fixed component. Nothing is deployed; there is no AWS account behind this repository.**
+> **Project status: Phase 17 — predictions can be compared against observed cost, reported as a signed distribution per service with every uncomparable pair named. One phase remains: the portfolio review.**
 > This README is a skeleton. Sections marked *(pending)* are completed in later phases, and all
 > sample reports will be generated artifacts rather than hand-written illustrations.
 
@@ -256,6 +256,34 @@ unknowns, which makes that figure a lower bound.
 It also found two real defects — a usage profile borrowed from another workload, and
 per-resource overrides that silently never matched CDK's hashed logical IDs. Both are
 written up in [infrastructure](docs/infrastructure.md).
+
+## Was the estimate any good?
+
+The tool predicts; without feedback nobody knows whether it is any good.
+
+```bash
+cost-gate feedback accuracy   --predictions examples/feedback/predictions.yaml   --observations examples/feedback/observations.yaml
+```
+
+```
+median error +4.2% (under-estimating) across 6 comparisons
+  p10 -6.5%   median +4.2%   p90 +36.4%
+
+Excluded from the distribution
+  1 x not deployed
+  1 x tags not active
+```
+
+**There is deliberately no "accuracy percentage."** A signed distribution distinguishes a
+tool that is systematically 20% high from one that is noisy; a single number does not. Per
+service, because "the tool underestimates S3 storage" leads somewhere and "the tool is 12%
+out" does not. Below five comparable pairs no distribution is reported at all.
+
+Pairs that cannot honestly be compared — a change never deployed, a window that has not
+settled, tags activated after deployment — are **excluded and named**, because an accuracy
+figure over a filtered population means nothing without the filter.
+
+It never blocks anything. See [actual-cost feedback](docs/actual-cost-feedback.md).
 
 ## Limitations
 

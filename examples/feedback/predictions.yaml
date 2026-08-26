@@ -1,0 +1,90 @@
+# Predictions recorded at merge, for the accuracy demonstration.
+#
+# Illustrative, like the pricing catalog: these describe a fictional account and are
+# labelled non-authoritative wherever they are reported. They exist so the feedback
+# machinery can be exercised offline, including the cases that matter most - a change
+# never deployed, a window that has not settled, tags activated too late.
+version: 1
+
+predictions:
+  - fingerprint: aaaa1111aaaa1111aaaa1111aaaa1111
+    recorded_at: 2026-01-06T09:00:00Z
+    environment: production
+    application: payments
+    predicted_monthly_delta: {amount: "62.32", currency: USD}
+    unknown_component_count: 3
+    deployed_at: 2026-01-06T14:00:00Z
+    services:
+      - {service: AmazonVPC, monthly_delta: {amount: "36.50", currency: USD}}
+      - {service: AWSELB, monthly_delta: {amount: "16.42", currency: USD}}
+      - {service: AmazonRDS, monthly_delta: {amount: "9.40", currency: USD}}
+
+  - fingerprint: bbbb2222bbbb2222bbbb2222bbbb2222
+    recorded_at: 2026-01-09T11:30:00Z
+    environment: production
+    application: payments
+    predicted_monthly_delta: {amount: "120.00", currency: USD}
+    deployed_at: 2026-01-09T16:00:00Z
+    services:
+      - {service: AmazonRDS, monthly_delta: {amount: "120.00", currency: USD}}
+
+  - fingerprint: cccc3333cccc3333cccc3333cccc3333
+    recorded_at: 2026-01-14T08:15:00Z
+    environment: production
+    application: payments
+    predicted_monthly_delta: {amount: "18.25", currency: USD}
+    deployed_at: 2026-01-14T10:00:00Z
+    services:
+      - {service: AmazonEC2, monthly_delta: {amount: "18.25", currency: USD}}
+
+  - fingerprint: dddd4444dddd4444dddd4444dddd4444
+    recorded_at: 2026-01-20T13:00:00Z
+    environment: production
+    application: payments
+    predicted_monthly_delta: {amount: "45.00", currency: USD}
+    unknown_component_count: 2
+    deployed_at: 2026-01-20T15:30:00Z
+    services:
+      - {service: AmazonS3, monthly_delta: {amount: "12.00", currency: USD}}
+      - {service: AmazonRDS, monthly_delta: {amount: "33.00", currency: USD}}
+
+  - fingerprint: eeee5555eeee5555eeee5555eeee5555
+    recorded_at: 2026-01-22T09:45:00Z
+    environment: production
+    application: payments
+    predicted_monthly_delta: {amount: "7.30", currency: USD}
+    deployed_at: 2026-01-22T12:00:00Z
+    services:
+      - {service: AWSLambda, monthly_delta: {amount: "7.30", currency: USD}}
+
+  - fingerprint: ffff6666ffff6666ffff6666ffff6666
+    recorded_at: 2026-01-24T16:20:00Z
+    environment: production
+    application: payments
+    predicted_monthly_delta: {amount: "210.00", currency: USD}
+    deployed_at: 2026-01-24T18:00:00Z
+    services:
+      - {service: AmazonEC2, monthly_delta: {amount: "210.00", currency: USD}}
+
+  # Analysed and approved, then abandoned. Counting this as a perfect prediction would
+  # be absurd, so it is excluded and named.
+  - fingerprint: 1111aaaa1111aaaa1111aaaa1111aaaa
+    recorded_at: 2026-01-27T10:00:00Z
+    environment: production
+    application: payments
+    predicted_monthly_delta: {amount: "540.00", currency: USD}
+    deployed_at: null
+    services:
+      - {service: AmazonEKS, monthly_delta: {amount: "540.00", currency: USD}}
+
+  # Deployed before its cost allocation tags were activated, so part of its billing
+  # history is invisible to attribution and the observed figure is genuinely too low.
+  - fingerprint: 2222bbbb2222bbbb2222bbbb2222bbbb
+    recorded_at: 2026-01-28T09:00:00Z
+    environment: production
+    application: payments
+    predicted_monthly_delta: {amount: "88.00", currency: USD}
+    deployed_at: 2026-01-28T11:00:00Z
+    tags_activated_on: 2026-02-15
+    services:
+      - {service: AmazonRDS, monthly_delta: {amount: "88.00", currency: USD}}

@@ -24,6 +24,7 @@ from cost_gate.cli.approval import approval_app
 from cost_gate.cli.cdk import cdk_app
 from cost_gate.cli.comment import comment
 from cost_gate.cli.demo import demo
+from cost_gate.cli.feedback import feedback_app
 from cost_gate.cli.pricing import pricing_app
 from cost_gate.config import ConfigError, load_config, write_schemas
 from cost_gate.estimators import COST_FREE_TYPES, default_registry
@@ -47,6 +48,7 @@ app.add_typer(schema_app, name="schema")
 app.add_typer(pricing_app, name="pricing")
 app.add_typer(cdk_app, name="cdk")
 app.add_typer(approval_app, name="approval")
+app.add_typer(feedback_app, name="feedback")
 
 # Registered here rather than decorated in place, so that cli/analyze.py stays a
 # module of plain functions that a test can call without going through Typer.
