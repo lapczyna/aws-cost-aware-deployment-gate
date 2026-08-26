@@ -4,7 +4,7 @@ A CI/CD gate that estimates the monthly AWS cost impact of an infrastructure cha
 is deployed**, evaluates it against version-controlled budgets and policies, and returns an
 explainable decision on the pull request.
 
-> **Project status: Phase 14 — the gate runs on pull requests and posts a single comment that updates in place, through a two-workflow privilege split that never lets a write token near pull-request code.**
+> **Project status: Phase 15 — approvals are bound to a fingerprint of the change they approved, so an approval granted for a small change cannot be spent on a large one.**
 > This README is a skeleton. Sections marked *(pending)* are completed in later phases, and all
 > sample reports will be generated artifacts rather than hand-written illustrations.
 
@@ -211,6 +211,32 @@ The architecture rule is machine-enforced rather than aspirational: adding `impo
 `cost_gate.domain` fails `python scripts/dev.py imports`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full rules.
+
+## Approvals that mean something
+
+`REQUIRE_APPROVAL` on its own is a click. Approval is granted for a $12/month change, a
+further commit lands, the job is re-run, and the approval is still sitting there — the
+person who approved never saw the second change.
+
+So an approval is bound to a **fingerprint** of what was analysed: the resources, the
+totals, the verdict, the policies that matched, the unknowns, the target environment.
+
+```bash
+cost-gate approval fingerprint --report report.json      # what a reviewer agrees to
+cost-gate approval check --report report.json   --approved-fingerprint <fingerprint>   --approver-group platform-architecture
+```
+
+It exits `0` only if the fingerprint still matches **and** the approver belongs to a
+group the policy named. `10` means missing, stale or unauthorised; `20` means refused.
+
+The fingerprint deliberately ignores the run ID, timestamp and tool version, so
+re-running the analysis does not revoke an approval — a mechanism that annoying gets
+routed around. It changes the moment the infrastructure, the cost or the unknowns do.
+
+**A `BLOCK` cannot be approved.** A block a click can remove is a warning wearing a
+blocking label. Changing the policy is the honest route, and it leaves a diff.
+
+See [the approval runbook](docs/runbooks/cost-approval.md).
 
 ## Limitations
 

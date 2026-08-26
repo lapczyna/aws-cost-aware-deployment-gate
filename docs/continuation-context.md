@@ -42,7 +42,8 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 11 | Reporting, CLI and the end-to-end pipeline | `617ce44`, fixed in `902ec6c` |
 | 12 | Deterministic demo scenarios | `4eb6e63`, packaged in `a5178e4` |
 | 13 | CDK integration | `50cc39e` |
-| 14 | GitHub pull-request integration | *(recorded at commit time)* |
+| 14 | GitHub pull-request integration | `c35aea2` |
+| 15 | Approval and deployment safeguards | *(recorded at commit time)* |
 
 ## Current state of the repository
 
@@ -223,6 +224,14 @@ pull-request code. The comment body is re-rendered from validated JSON by truste
 code, and the pull request is resolved from `workflow_run.head_sha` rather than from
 the number the untrusted job wrote.
 
+`approvals.py` and `cli/approval.py` (Phase 15). An approval is bound to a
+**fingerprint** of the analysed change — resources, totals, verdict, matched policies,
+unknowns, target environment — so an approval granted for a small change cannot be
+spent on a large one. The fingerprint deliberately excludes the run id, timestamp and
+tool version, so re-running the analysis does not revoke an approval. A `BLOCK` is
+never approvable. `.github/workflows/deploy-example.yml` shows the ordering
+(analyse → protected environment → verify → deploy) and is **inert by construction**.
+
 Still absent:
 `recommendations/`, `observability/`, `infrastructure/`, and the AWS Price List
 adapter.
@@ -384,7 +393,20 @@ adapter.
     action's `uses:` lines were unpinned-by-omission. It now scans `.github/actions/`
     too, and rejects a `workflow_run` job that checks out the triggering run's head -
     which is `pull_request_target` spelled differently.
-48. `git checkout -- <path>` silently does nothing for an **untracked** file. When
+48. **A blunt safety check must still be able to tell safety from danger.** The
+    "no AWS credentials" check first flagged `ci.yml`, which sets `AWS_ACCESS_KEY_ID`
+    to a *poison* value so an accidental SDK call fails loudly. That is the opposite of
+    configuring a credential. The rule now looks at where the value comes from
+    (`secrets.`/`vars.`), not at the variable name — a check that cannot distinguish
+    the two trains people to disable it.
+49. GitHub's environment protection approves a **job**, and a job can be re-run after
+    the code beneath it moved. That is why the deployment job re-verifies with
+    `cost-gate approval check` rather than trusting the environment gate alone.
+50. In the deploy job's `if:`, `always()` is needed because the `approve` job is
+    *skipped* when no approval was required, and a skipped dependency would otherwise
+    skip the deployment. The condition must then explicitly allow only `success` or
+    `skipped`, or a *failed* approval would let the deployment through.
+51. `git checkout -- <path>` silently does nothing for an **untracked** file. When
     probing whether a test really fails, revert the probe explicitly and re-check.
 
 ## Verification commands
@@ -441,26 +463,31 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
 
 ## Exact recommended next action
 
-**Phase 15 — approval and deployment safeguards.** The gate now reports; what it cannot
-yet do is *hold* a deployment until someone with authority agrees.
+**Phase 16 — optional serverless AWS infrastructure, synth only.**
 
-* Map the decision onto CI: `REQUIRE_APPROVAL` should route to a protected GitHub
-  environment whose reviewers are the approver groups the policies name, rather than
-  merely exiting 10 and hoping a human reads it.
-* An example deployment workflow that depends on the gate job and cannot run on `push`
-  or `pull_request` - `tests/unit/test_workflows.py` is the right place to assert that.
-* Concurrency groups so two deployments of the same environment cannot interleave.
-* A rollback runbook under `docs/runbooks/`.
-* **No AWS resources are to be deployed without the user's explicit approval.** Phase 16
-  is synth-only; keep it that way.
+> **The user's standing rule: do not deploy any AWS resources without explicit
+> approval.** Phase 16 is synthesis and unit assertions only. Nothing in this
+> repository obtains AWS credentials, and `scripts/check_workflows.py` now enforces
+> that. Do not add a deployment workflow, an OIDC role, or a bootstrap step.
 
-Things Phase 14 established that Phase 15 depends on:
+* `infrastructure/` — a CDK app in Python: S3 for pricing snapshots, a DynamoDB
+  on-demand table for prediction history, EventBridge Scheduler plus a Lambda to
+  refresh the catalog, an AWS Budgets resource, and CloudWatch alarms.
+* `aws_cdk.assertions.Template` tests: the resources exist, the bucket blocks public
+  access and is encrypted, the table is on-demand, the Lambda has least-privilege IAM.
+* **Self-analysis**: run the gate over the synthesised output and commit the report.
+  An infrastructure-cost tool that cannot price its own infrastructure is a poor
+  advertisement, and it will find gaps in coverage.
+* Document the estimated monthly cost and a teardown procedure, even though nothing is
+  deployed — a reader should be able to see what it *would* cost.
 
-* `decision.required_approver_groups` already carries who must approve, and
-  `GateDecision` refuses a `REQUIRE_APPROVAL` result that names nobody.
-* The composite action exposes `result`, `monthly-delta`, `unknown-count` and
-  `exit-code` as outputs, which is how a downstream job branches on the verdict.
-* Workflow invariants are asserted in `tests/unit/test_workflows.py` and
-  `scripts/check_workflows.py`. Extend those rather than adding a third mechanism.
+Things Phase 15 established that Phase 16 depends on:
 
-Commit message: `ci: enforce cost-aware deployment approvals`
+* `dev.py synth` already regenerates `examples/cdk/synthesized/`; extend it for
+  `infrastructure/` rather than adding a second mechanism.
+* `-m cdk` is the opt-in marker for anything needing Node, and `addopts` excludes it by
+  default. `aws-cdk-lib` is in the `[cdk]` extra.
+* `tests/unit/test_workflows.py::TestNothingDeploysByAccident` is the guard. Extend it
+  if `infrastructure/` gains anything that looks deployable.
+
+Commit message: `infra: add optional serverless aws integration`

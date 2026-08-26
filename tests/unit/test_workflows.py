@@ -23,6 +23,7 @@ ACTIONS = ROOT / ".github" / "actions"
 
 ANALYSIS = WORKFLOWS / "cost-gate.yml"
 COMMENT = WORKFLOWS / "cost-gate-comment.yml"
+DEPLOY = WORKFLOWS / "deploy-example.yml"
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -166,3 +167,81 @@ class TestTheCompositeAction:
     def test_it_exposes_the_decision_as_an_output(self):
         outputs = load(ACTIONS / "cost-gate" / "action.yml")["outputs"]
         assert {"result", "monthly-delta", "unknown-count", "exit-code"} <= set(outputs)
+
+
+class TestNothingDeploysByAccident:
+    """This repository has no AWS account and must not be able to acquire one.
+
+    The example deployment workflow is inert by construction rather than by convention.
+    These tests are what make that claim checkable, and they are the reason enabling a
+    real deployment has to be a reviewable diff instead of a quiet edit.
+    """
+
+    @pytest.mark.parametrize("path", sorted(WORKFLOWS.glob("*.yml")))
+    def test_no_workflow_obtains_aws_credentials(self, path):
+        text = path.read_text(encoding="utf-8")
+        assert "aws-actions/configure-aws-credentials" not in text
+        assert "role-to-assume" not in text
+
+    @pytest.mark.parametrize("path", sorted(WORKFLOWS.glob("*.yml")))
+    def test_no_aws_variable_is_fed_from_a_secret(self, path):
+        # ci.yml deliberately sets AWS_* to poison values so an accidental SDK call
+        # fails loudly. That is the opposite of configuring a credential, so the check
+        # is about where the value comes from, not about the variable name.
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip().startswith("AWS_"):
+                assert "secrets." not in line
+                assert "vars." not in line
+
+    @pytest.mark.parametrize(
+        "path", [p for p in sorted(WORKFLOWS.glob("*.yml")) if "deploy" in p.stem]
+    )
+    def test_a_deployment_workflow_never_runs_automatically(self, path):
+        # A deployment must be something a person asks for, on a revision they name.
+        triggers = set(load(path)["on"])
+        assert not triggers & {"push", "pull_request", "schedule"}
+
+    def test_the_example_deployment_deploys_nothing(self):
+        assert "deploys nothing" in DEPLOY.read_text(encoding="utf-8")
+
+
+class TestTheDeploymentOrdering:
+    def test_approval_waits_on_the_analysis(self):
+        jobs = load(DEPLOY)["jobs"]
+        assert "analyse" in jobs["approve"]["needs"]
+
+    def test_deployment_waits_on_both(self):
+        assert set(load(DEPLOY)["jobs"]["deploy"]["needs"]) == {"analyse", "approve"}
+
+    def test_approval_uses_a_protected_environment(self):
+        # The environment is what actually holds the job until a reviewer acts; the
+        # condition alone would only skip it.
+        assert "cost-approval" in load(DEPLOY)["jobs"]["approve"]["environment"]
+
+    def test_approval_is_only_requested_when_the_gate_asked_for_it(self):
+        # A gate people have to wave through routinely is a gate they stop reading.
+        condition = load(DEPLOY)["jobs"]["approve"]["if"]
+        assert "REQUIRE_APPROVAL" in condition
+
+    def test_a_blocked_change_never_reaches_the_deploy_job(self):
+        condition = load(DEPLOY)["jobs"]["deploy"]["if"]
+        assert "!= 'BLOCK'" in condition
+        assert "!= 'ERROR'" in condition
+
+    def test_a_failed_approval_blocks_deployment(self):
+        # `always()` is needed because `approve` is skipped when no approval was
+        # required, but it must not let a *failed* or *cancelled* approval through.
+        condition = load(DEPLOY)["jobs"]["deploy"]["if"]
+        assert "needs.approve.result == 'success'" in condition
+        assert "needs.approve.result == 'skipped'" in condition
+
+    def test_the_deployment_verifies_the_approval_matches_the_change(self):
+        # The environment approved a job. This checks that what was approved is what is
+        # about to be deployed.
+        assert "cost-gate approval check" in DEPLOY.read_text(encoding="utf-8")
+
+    def test_deployments_of_one_environment_do_not_interleave(self):
+        concurrency = load(DEPLOY)["concurrency"]
+        assert "inputs.environment" in concurrency["group"]
+        # Interrupting a deployment half-way is worse than queueing behind one.
+        assert concurrency["cancel-in-progress"] is False

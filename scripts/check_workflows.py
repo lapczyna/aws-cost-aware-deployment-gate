@@ -14,7 +14,12 @@ Checks, all documented in ``docs/security.md`` and ``docs/adr/0007``:
    mutable, so ``@v4`` is a trust-on-every-run dependency. Composite actions under
    ``.github/actions/`` are checked too: their ``uses:`` lines are just as third-party
    as a workflow's, and scanning only workflows would leave the gap open.
-4. A ``workflow_run`` workflow never checks out the head of the run that triggered it.
+4. No workflow in this repository can deploy AWS resources on ``push`` or
+   ``pull_request``, and none configures AWS credentials at all. This repository is a
+   demonstration: its example deployment workflow must stay inert by construction
+   rather than by convention, so that enabling it is a reviewable diff and never an
+   accident.
+5. A ``workflow_run`` workflow never checks out the head of the run that triggered it.
    That trigger exists so a privileged job can act on an untrusted one's results, and
    checking out ``workflow_run.head_sha`` or ``head_branch`` pulls the untrusted code
    into the job holding the write token - reconstructing the exact hazard that makes
@@ -108,6 +113,61 @@ def _yaml_files() -> list[Path]:
     return sorted(files)
 
 
+CREDENTIAL_ACTIONS = ("aws-actions/configure-aws-credentials", "role-to-assume")
+AWS_FROM_SECRET = re.compile(r"^\s*AWS_[A-Z_]+\s*:.*\$\{\{\s*(secrets|vars)\.", re.MULTILINE)
+DEPLOY_TRIGGERS = frozenset({"push", "pull_request", "schedule"})
+
+
+def check_no_automatic_deployment() -> list[Failure]:
+    """Reject any workflow that could deploy AWS resources without being asked.
+
+    Two rules, both deliberately blunt:
+
+    * nothing here obtains AWS credentials. There is no account behind this repository,
+      so a workflow that could authenticate is a workflow that could deploy.
+    * a workflow whose name suggests deployment does not run on an automatic trigger.
+      Deployment must be something a person asks for, on a revision they name.
+
+    The credential rule looks for a *real* credential: the AWS credentials action, a
+    role to assume, or an ``AWS_*`` variable fed from ``secrets``/``vars``. It must not
+    fire on ``ci.yml``, which sets ``AWS_ACCESS_KEY_ID`` to a deliberate poison value so
+    that an accidental SDK call fails loudly rather than picking up ambient credentials
+    on a self-hosted runner. That is the opposite of configuring a credential, and a
+    check that could not tell the two apart would train people to disable it.
+    """
+    failures: list[Failure] = []
+    for workflow in sorted(WORKFLOW_DIR.rglob("*.y*ml")):
+        text = workflow.read_text(encoding="utf-8")
+        location = workflow.relative_to(ROOT).as_posix()
+
+        for marker in CREDENTIAL_ACTIONS:
+            if marker in text:
+                failures.append(
+                    (
+                        location,
+                        f"obtains AWS credentials ('{marker}'); this repository deploys "
+                        "nothing, so nothing here should be able to",
+                    )
+                )
+        if AWS_FROM_SECRET.search(text):
+            failures.append(
+                (location, "feeds an AWS_* variable from a secret; no secret should be needed")
+            )
+
+        if "deploy" not in workflow.stem:
+            continue
+        triggers = _workflow_triggers(yaml.safe_load(text)) & DEPLOY_TRIGGERS
+        if triggers:
+            failures.append(
+                (
+                    location,
+                    f"a deployment workflow triggered by {', '.join(sorted(triggers))}; "
+                    "deployment must be requested explicitly",
+                )
+            )
+    return failures
+
+
 def check_untrusted_checkout() -> list[Failure]:
     """Reject a `workflow_run` workflow that checks out the triggering run's head.
 
@@ -171,6 +231,7 @@ def main() -> int:
         + check_yaml_loading()
         + check_action_pinning()
         + check_untrusted_checkout()
+        + check_no_automatic_deployment()
     )
     if failures:
         for location, message in failures:
@@ -180,7 +241,7 @@ def main() -> int:
         return 1
     print(
         "ok: no prohibited triggers, no unsafe YAML loading, all actions SHA-pinned, "
-        "no untrusted checkout in a privileged job"
+        "no untrusted checkout in a privileged job, nothing deploys automatically"
     )
     return 0
 

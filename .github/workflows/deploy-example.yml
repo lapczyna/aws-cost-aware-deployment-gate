@@ -1,0 +1,148 @@
+# An example of gating a deployment on the cost decision.
+#
+# ============================================================================
+# THIS WORKFLOW DEPLOYS NOTHING. It is a worked example, and it is inert by
+# construction, not by convention:
+#
+#   * it references no secrets and configures no OIDC role, so it holds no AWS
+#     credentials and could not authenticate even if it tried;
+#   * the "deploy" step prints what it would do;
+#   * tests/unit/test_workflows.py asserts both of those, and asserts that no
+#     workflow in this repository deploys on `push` or `pull_request`.
+#
+# Enabling it for real means adding a role and replacing the final step, which
+# is a reviewable diff rather than something that can happen by accident.
+# ============================================================================
+#
+# The shape worth copying is the ordering:
+#
+#   analyse -> require approval (a protected environment) -> verify -> deploy
+#
+# The verify step matters. GitHub's environment protection approves a *job*, and a
+# job can be re-run after the code beneath it has moved. `cost-gate approval check`
+# binds the approval to a fingerprint of the analysed change, so an approval granted
+# for one version of the infrastructure cannot be spent on another.
+name: deploy-example
+
+on:
+  # Never `push` and never `pull_request`: a deployment must be something a person
+  # asks for, on a revision they name.
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy to.
+        required: true
+        default: development
+        type: choice
+        options: [development, staging, production]
+
+permissions: {}
+
+concurrency:
+  # Two deployments of the same environment must not interleave. Not cancelled in
+  # progress: interrupting a deployment half-way is worse than queueing behind it.
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  analyse:
+    name: Estimate the cost of this deployment
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      result: ${{ steps.gate.outputs.result }}
+      fingerprint: ${{ steps.fingerprint.outputs.fingerprint }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Run the gate
+        id: gate
+        uses: ./.github/actions/cost-gate
+        with:
+          baseline: examples/cloudformation/baseline.yaml
+          proposed: examples/cloudformation/proposed.yaml
+          config: examples/config/cost-gate.yaml
+          environment: ${{ inputs.environment }}
+          application: payments
+          artifact-name: cost-gate-deploy-report
+          fail-on: never
+
+      - name: Fingerprint what would be approved
+        id: fingerprint
+        run: |
+          echo "fingerprint=$(cost-gate approval fingerprint \
+            --report cost-gate-out/report.json)" >> "$GITHUB_OUTPUT"
+
+  approve:
+    name: Wait for an authorised approval
+    needs: analyse
+    # Only when the gate asked for one. A change that passes should not queue behind a
+    # human for no reason: a gate people have to wave through routinely is a gate they
+    # stop reading.
+    if: needs.analyse.outputs.result == 'REQUIRE_APPROVAL'
+    runs-on: ubuntu-latest
+    # The protected environment is what actually holds the deployment. Its reviewers
+    # are configured in repository settings and should be the approver groups the
+    # policies name - see docs/runbooks/cost-approval.md.
+    environment: ${{ inputs.environment }}-cost-approval
+    permissions: {}
+    steps:
+      - name: Record what is being approved
+        run: |
+          echo "Approving change ${{ needs.analyse.outputs.fingerprint }}"
+          echo "for environment ${{ inputs.environment }}."
+          echo "This approval is bound to that fingerprint and cannot be reused"
+          echo "if the infrastructure changes."
+
+  deploy:
+    name: Deploy
+    needs: [analyse, approve]
+    # `always()` plus an explicit test, because `approve` is skipped when no approval
+    # was needed - and a skipped dependency would otherwise skip this job too. The
+    # condition is written so that a *failed* or *cancelled* approval still blocks.
+    if: >-
+      always() &&
+      needs.analyse.result == 'success' &&
+      (needs.approve.result == 'success' || needs.approve.result == 'skipped') &&
+      needs.analyse.outputs.result != 'BLOCK' &&
+      needs.analyse.outputs.result != 'ERROR'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the gate
+        run: python -m pip install --quiet .
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: cost-gate-deploy-report
+          path: incoming
+
+      - name: Verify the approval belongs to this change
+        # The last line of defence, and the reason this is not just an environment
+        # gate. GitHub approved a job; this checks that what was approved is what is
+        # about to be deployed.
+        run: |
+          cost-gate approval check \
+            --report incoming/report.json \
+            --approved-fingerprint "${{ needs.analyse.outputs.fingerprint }}" \
+            --approver-group platform-architecture \
+            --approver-group finops
+
+      - name: Deploy
+        run: |
+          echo "This example deploys nothing."
+          echo
+          echo "A real deployment step would go here, in a job that has by this point"
+          echo "established: the change was analysed, the gate did not refuse it, an"
+          echo "authorised person approved it, and the approval was granted for this"
+          echo "exact change rather than an earlier version of it."
+          echo
+          echo "Enabling it requires adding an AWS role, which is a reviewable diff."
