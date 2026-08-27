@@ -68,6 +68,21 @@
 
 </details>
 
+<details>
+<summary>Worth a look (1)</summary>
+
+**Database runs continuously in development**
+
+Currently costing: $37.58
+
+Non\-production compute is often idle outside working hours\. A schedule in the usage profile changes what this tool assumes; it does not change what runs\. Stopping the instance is what changes the bill\.
+
+*Applies only if the workload tolerates being stopped\. Anything holding state in instance storage, running a long batch, or serving a shared environment other teams depend on does not\.*
+
+These are patterns worth checking, not instructions. Each states the cost being incurred now and what must be true for the change to be right; none of them is a promised saving.
+
+</details>
+
 ---
 
 <sub>pricing: fixture\-catalog · v0\.1\.0\-illustrative · captured 2026\-08\-25 · illustrative list prices, not authoritative · not verified against an authoritative source</sub>

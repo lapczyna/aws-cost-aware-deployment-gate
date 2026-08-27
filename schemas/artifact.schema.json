@@ -890,6 +890,86 @@
       "title": "Reason",
       "type": "object"
     },
+    "Recommendation": {
+      "additionalProperties": false,
+      "description": "One thing worth looking at, with the condition under which it applies.",
+      "properties": {
+        "addressable_monthly": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "condition": {
+          "title": "Condition",
+          "type": "string"
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence",
+          "default": "MEDIUM"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "resource": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResourceKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "title",
+        "detail",
+        "condition"
+      ],
+      "title": "Recommendation",
+      "type": "object"
+    },
+    "RecommendationReport": {
+      "additionalProperties": false,
+      "description": "Everything worth looking at in one change.",
+      "properties": {
+        "recommendations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Recommendation"
+          },
+          "title": "Recommendations",
+          "type": "array"
+        }
+      },
+      "title": "RecommendationReport",
+      "type": "object"
+    },
     "ResourceKey": {
       "additionalProperties": false,
       "description": "Identifies a resource within a comparison: a stack plus a logical ID.",
@@ -1078,6 +1158,9 @@
     },
     "pricing": {
       "$ref": "#/$defs/PricingProvenance"
+    },
+    "recommendations": {
+      "$ref": "#/$defs/RecommendationReport"
     },
     "region": {
       "default": "us-east-1",

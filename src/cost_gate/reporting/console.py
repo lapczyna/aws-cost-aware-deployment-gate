@@ -49,6 +49,7 @@ def render_console(artifact: AnalysisArtifact, console: Console, verbose: bool =
     _print_contributors(artifact, console)
     _print_unknowns(artifact, console, verbose)
     _print_budgets(artifact, console)
+    _print_recommendations(artifact, console)
     _print_warnings(artifact, console)
 
     console.print(f"  Result: [{style} bold]{decision.result.value}[/{style} bold]")
@@ -123,6 +124,22 @@ def _print_budgets(artifact: AnalysisArtifact, console: Console) -> None:
         )
         console.print(f"  Budget {evaluation.budget_id}: {utilisation} ({evaluation.basis})")
     console.print()
+
+
+def _print_recommendations(artifact: AnalysisArtifact, console: Console) -> None:
+    """Patterns worth looking at, with the condition attached to each."""
+    found = artifact.recommendations.recommendations
+    if not found:
+        return
+    console.print("\n  [cyan]Worth a look[/cyan]")
+    for item in found:
+        amount = (
+            str(item.addressable_monthly)
+            if item.addressable_monthly is not None
+            else "cost not established"
+        )
+        console.print(f"    {item.title} [dim]({amount} now)[/dim]")
+        console.print(f"      [dim]{item.condition}[/dim]")
 
 
 def _print_warnings(artifact: AnalysisArtifact, console: Console) -> None:

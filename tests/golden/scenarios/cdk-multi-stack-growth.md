@@ -90,6 +90,45 @@ Approval required from: `platform-architecture`
 
 </details>
 
+<details>
+<summary>Worth a look (4)</summary>
+
+**VpcPublicSubnet1EIPD7E02669 is charged while allocated, attached or not**
+
+Currently costing: $3.65
+
+Every public IPv4 address carries an hourly charge from the moment it is allocated\. An address kept for a machine that no longer exists costs the same as one in active use\.
+
+*Applies only if the address is not required\. A stable address referenced by DNS, an allowlist held by a third party, or a firewall rule elsewhere is doing a job that releasing it would break\.*
+
+**VpcPublicSubnet1NATGateway4D7517AA is charged by the hour whether or not traffic flows**
+
+Currently costing: $32.85
+
+A NAT Gateway accrues an hourly charge for as long as it exists, plus a per\-gigabyte charge for what passes through it\. VPC gateway endpoints for S3 and DynamoDB carry neither\.
+
+*Applies only if the traffic through this gateway is destined for S3 and DynamoDB alone\. If anything behind it reaches the public internet, or any AWS service without a gateway endpoint, the gateway is doing work endpoints cannot\. Check the flow logs before acting\.*
+
+**ApiF70053CD runs continuously in development**
+
+Currently costing: $21.72
+
+Non\-production compute is often idle outside working hours\. A schedule in the usage profile changes what this tool assumes; it does not change what runs\. Stopping the instance is what changes the bill\.
+
+*Applies only if the workload tolerates being stopped\. Anything holding state in instance storage, running a long batch, or serving a shared environment other teams depend on does not\.*
+
+**DatabaseB269D8BB runs continuously in development**
+
+Currently costing: $37.58
+
+Non\-production compute is often idle outside working hours\. A schedule in the usage profile changes what this tool assumes; it does not change what runs\. Stopping the instance is what changes the bill\.
+
+*Applies only if the workload tolerates being stopped\. Anything holding state in instance storage, running a long batch, or serving a shared environment other teams depend on does not\.*
+
+These are patterns worth checking, not instructions. Each states the cost being incurred now and what must be true for the change to be right; none of them is a promised saving.
+
+</details>
+
 ---
 
 <sub>pricing: fixture\-catalog · v0\.1\.0\-illustrative · captured 2026\-08\-25 · illustrative list prices, not authoritative · not verified against an authoritative source</sub>

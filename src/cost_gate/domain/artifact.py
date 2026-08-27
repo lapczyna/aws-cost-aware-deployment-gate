@@ -25,6 +25,7 @@ from cost_gate.domain.changes import ChangeSet
 from cost_gate.domain.cost import CostReport
 from cost_gate.domain.decision import GateDecision
 from cost_gate.domain.enums import ChangeOperation, Confidence, MatchMethod
+from cost_gate.domain.recommendations import RecommendationReport
 
 __all__ = ["ARTIFACT_SCHEMA_VERSION", "AnalysisArtifact", "ChangeSummary", "PricingProvenance"]
 
@@ -130,6 +131,12 @@ class AnalysisArtifact(BaseModel):
     changes: ChangeSummary = Field(default_factory=ChangeSummary)
     decision: GateDecision
     cost: CostReport
+    recommendations: RecommendationReport = Field(default_factory=RecommendationReport)
+    """Patterns worth looking at, with the condition under which each applies.
+
+    Deliberately outside :attr:`decision`. Recommendations never affect the verdict:
+    advice that could fail a build is not advice, and a reader who learns the tool
+    blocks on opinions stops reading the opinions."""
 
     warnings: tuple[str, ...] = ()
     """Advisories about the configuration rather than the change.

@@ -16,6 +16,7 @@ from typer.testing import CliRunner
 from cost_gate.adapters.clock import FixedClock
 from cost_gate.cli.analyze import exit_code_for
 from cost_gate.cli.main import app
+from cost_gate.domain.artifact import AnalysisArtifact
 from cost_gate.domain.enums import GateResult
 from cost_gate.exit_codes import ExitCode
 from cost_gate.pipeline import AnalysisError, AnalysisRequest, run_analysis
@@ -377,3 +378,49 @@ class TestExplanationCommands:
     def test_an_unreadable_report_exits_error(self, tmp_path):
         result = runner.invoke(app, ["explain-decision", "--report", str(tmp_path / "absent.json")])
         assert result.exit_code == ExitCode.ERROR
+
+
+class TestRecommendationsNeverAffectTheVerdict:
+    """Advice that could fail a build is not advice.
+
+    A reader who learns the tool blocks on opinions stops reading the opinions, so the
+    separation has to be structural rather than a convention: recommendations live
+    outside `decision` on the artifact, and nothing in the decision path can see them.
+    """
+
+    def test_a_change_with_recommendations_can_still_pass(self, templates):
+        # A log group with no retention always produces a recommendation, and on its own
+        # it is not a reason to fail anything.
+        proposed = (
+            "Resources:\n"
+            "  Logs:\n"
+            "    Type: AWS::Logs::LogGroup\n"
+            "    Properties:\n"
+            "      LogGroupName: /demo\n"
+        )
+        artifact = analyse(
+            templates("b.yaml", "Resources: {}\n"),
+            templates("p.yaml", proposed),
+            environment="development",
+        )
+        assert artifact.recommendations.recommendations
+        assert artifact.decision.result is GateResult.PASS
+
+    def test_the_decision_is_unchanged_by_them(self, templates):
+        artifact = analyse(
+            templates("b.yaml", BASELINE),
+            templates("p.yaml", WITH_NAT),
+            environment="development",
+        )
+        # The decision reports only policies and budgets; no recommendation appears in
+        # its reasons, its evaluations or its approver groups.
+        rendered = artifact.decision.model_dump_json()
+        for item in artifact.recommendations.recommendations:
+            assert item.rule_id not in rendered
+
+    def test_recommendations_live_outside_the_decision(self):
+        # Structural, so it survives someone adding a field later.
+        assert (
+            "recommendations"
+            not in AnalysisArtifact.model_fields["decision"].annotation.model_fields
+        )

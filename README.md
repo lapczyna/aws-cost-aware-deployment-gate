@@ -5,7 +5,7 @@ is deployed**, evaluates it against version-controlled budgets and policies, and
 explainable decision on the pull request.
 
 > **Complete.** Eighteen phases, and an honest account of what it does not do in
-> [the gap analysis](docs/gap-analysis.md) — two phases were never built and nothing
+> [the gap analysis](docs/gap-analysis.md) — one phase was never built and nothing
 > has been deployed. The GitHub integration has since been verified end to end on
 > real pull requests, which is how it was found to be missing a permission.
 > Every sample report in this repository is a generated artifact, compared byte-for-byte
@@ -61,6 +61,7 @@ See [`docs/estimation-methodology.md`](docs/estimation-methodology.md).
 | [Approval runbook](docs/runbooks/cost-approval.md) | For whoever is asked to approve a gated change |
 | [ADRs](docs/adr/README.md) | Decisions, alternatives and consequences |
 | [Roadmap](docs/roadmap.md) | Phases, service coverage, deferred work |
+| [Recommendations](docs/recommendations.md) | Why the advice never promises a saving |
 | [Gap analysis](docs/gap-analysis.md) | What this does not do, and why — read this one |
 | [Example configuration](examples/config/) | Annotated `cost-gate.yaml` and usage profile |
 | [JSON Schemas](schemas/) | Generated from the models; validate config and consume reports |
@@ -273,6 +274,29 @@ It also found two real defects — a usage profile borrowed from another workloa
 per-resource overrides that silently never matched CDK's hashed logical IDs. Both are
 written up in [infrastructure](docs/infrastructure.md).
 
+## Advice that does not overclaim
+
+The gate points out patterns worth looking at. It **never promises a saving**, because
+"replace this NAT Gateway and save $32.85/month" is false unless every byte through it
+goes to S3 or DynamoDB — which a template does not say.
+
+Each recommendation states three things separately: the cost being incurred **now**, the
+condition under which acting is right, and the evidence that triggered it.
+
+```
+NatGateway is charged by the hour whether or not traffic flows ($32.85 now)
+  Applies only if the traffic through this gateway is destined for S3 and DynamoDB
+  alone. If anything behind it reaches the public internet, the gateway is doing work
+  endpoints cannot. Check the flow logs before acting.
+```
+
+The wording rule is **enforced, not documented**: the model rejects "save $…", "savings
+of" and any form of *save* near a dollar amount. Recommendations also never affect the
+verdict — advice that could fail a build is not advice.
+
+Right-sizing is deliberately absent: it needs utilisation data a template does not carry.
+See [recommendations](docs/recommendations.md).
+
 ## Was the estimate any good?
 
 The tool predicts; without feedback nobody knows whether it is any good.
@@ -311,8 +335,8 @@ catalog that is explicitly not authoritative.
 
 The reports state these boundaries rather than leaving them to be inferred.
 
-Two of the eighteen planned phases were never built — the AWS Price List adapter and
-the recommendation engine — and nothing has ever been deployed to AWS.
+One of the eighteen planned phases was never built — the AWS Price List adapter — and
+nothing has ever been deployed to AWS.
 [The gap analysis](docs/gap-analysis.md) is the full account, including the defects that
 reached `main` during development and how each was caught.
 
