@@ -6,24 +6,6 @@ A portfolio piece that only advertises its strengths invites the reader to go lo
 the weaknesses, and to assume the ones they find were hidden deliberately. This is the
 list. Where something is missing, the reason is here too.
 
-## Not built
-
-### The AWS Price List adapter (Phase 8)
-
-**Status: not implemented.** `docs/pricing-sources.md` describes the interface and
-`cost-gate pricing` has the shape for it, but no boto3 provider exists.
-
-The bundled fixture catalog is the default and the only provider, and nothing downstream
-depends on a second one — the `PricingProvider` protocol has exactly one implementation.
-Skipping it was a deliberate scope decision made when no AWS credentials were available:
-an adapter that could only ever be tested against mocks would have added surface area
-without adding confidence.
-
-*What it would take:* the protocol is already the right seam. A `boto3` client behind it,
-pagination, throttling retry, and a contract test suite run against both providers. The
-contract suite exists (`tests/contract/`) and currently has one implementation to run
-against.
-
 ## Built, and how far it has been exercised
 
 ### The GitHub integration, since verified
@@ -67,6 +49,20 @@ repository, where a token would have been available anyway.
 IAM policy has been evaluated by AWS, and the Lambda handler is a placeholder that
 raises. The cost figure of $0.21/month is the tool's own estimate of its own design — a
 pleasing symmetry, and not the same as a bill.
+
+### The Price List adapter has never called AWS
+
+Built in Phase 8 and exercised entirely through `botocore.Stubber` — 31 tests covering
+request shape, pagination, throttling with jittered backoff, non-transient failure and
+every way it refuses to answer. It is also held to the same shared contract as every
+other provider.
+
+**The responses are ones this repository wrote.** Treat the first live run as a test.
+
+Its dimension mapping is also **deliberately partial**: usage-based dimensions such as
+Lambda requests and DynamoDB capacity units are absent, because their products are split
+across free tiers and tiered rates in ways a single `TERM_MATCH` query does not express.
+`docs/pricing-sources.md` lists what is covered and what is not.
 
 ### The Cost Explorer adapter has never called AWS
 

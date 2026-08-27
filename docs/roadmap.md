@@ -14,7 +14,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 5 | Pricing provider framework | done | see git log |
 | 6 | Fixed-cost AWS estimators | done | see git log |
 | 7 | Usage-based estimators | done | see git log |
-| 8 | AWS Price List adapter (optional provider) | **not built** | deliberate: no credentials were available, and the protocol has one implementation that nothing depends on replacing. See [gap analysis](gap-analysis.md) |
+| 8 | AWS Price List adapter (optional provider) | done | Stubber-tested; **has never called AWS**. See [pricing sources](pricing-sources.md) |
 | 9 | Budget and policy engine | done | see git log |
 | 10 | FinOps recommendation engine | done | eight rules, none promising a saving; see [recommendations](recommendations.md) |
 | 11 | Reporting and CLI | done | see git log |
