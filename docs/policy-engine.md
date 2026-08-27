@@ -247,3 +247,47 @@ the specific logical ID and source location that introduced the gateway.
 If a third policy later blocks unresolved production resources and also matches, the result
 becomes `BLOCK` — and the two approval reasons remain in the artifact, because a reader needs
 to know everything that was wrong, not just the worst thing.
+
+## Finding rules that cannot fire
+
+`cost-gate validate-config --strict` reports configuration that loads cleanly and can
+never take effect. The loader rejects what is *wrong*; this finds what is merely
+**inert** — and inert configuration is worse than absent configuration, because it looks
+like a decision has been recorded.
+
+Two checks, both narrow on purpose:
+
+**A rule aimed at an environment the usage profile does not describe.** Estimates for it
+fall back silently to `defaults`, which is the right runtime behaviour — refusing to
+estimate would be worse — but a policy written for `staging` while the profile knows only
+`production` is judging numbers nobody chose for staging. Most occurrences are typos, so
+the finding lists the environments that do exist.
+
+**`confidence_at_most: HIGH`.** `HIGH` is the top of the confidence lattice, so the
+condition is true of every report ever produced. Inside `all_of` it contributes nothing;
+inside `any_of` it makes the whole policy unconditional. The check walks nested
+combinators, because that is where it hides.
+
+```console
+$ cost-gate validate-config --config cost-gate.yaml --strict
+strict: 2 finding(s)
+  policies/staging-guard/scope
+    targets environment 'staging', which the usage profile does not describe (it knows production)
+    remedy: add a 'staging' entry to the usage profile, or correct the spelling
+  policies/staging-guard/when/all_of[1]
+    confidence_at_most: HIGH is true of every change, because HIGH is the highest confidence there is
+    remedy: use MEDIUM or LOW to mean 'the tool was not sure', or remove the condition
+```
+
+It exits `ERROR` (30) when it finds something, but only because the caller asked by
+passing `--strict`. These are judgements about intent rather than correctness, and a
+check that is occasionally wrong must be opt-in rather than something that fails a build.
+
+### Why there are only two
+
+A third was written — thresholds on a budget with no `monthly_limit`, which can never be
+crossed — and then deleted, because the loader already rejects that outright with a
+better message than a lint could give. A check that can never fire is precisely what this
+feature exists to find, so shipping one here would have been funny rather than
+defensible. `tests/unit/test_strict_config.py` pins the loader's rejection so nobody
+writes it again.
