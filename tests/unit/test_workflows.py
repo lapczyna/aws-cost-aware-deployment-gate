@@ -95,9 +95,7 @@ class TestTheCommentWorkflowRunsNoPullRequestCode:
         # contents grants nothing, while a second write scope would.
         for job in load(COMMENT)["jobs"].values():
             writes = {
-                scope
-                for scope, level in (job.get("permissions") or {}).items()
-                if level == "write"
+                scope for scope, level in (job.get("permissions") or {}).items() if level == "write"
             }
             assert writes == {"pull-requests"}
 
