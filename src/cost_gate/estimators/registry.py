@@ -73,8 +73,22 @@ COST_FREE_TYPES: frozenset[str] = frozenset(
         # noise at the top of every CDK report - which is how a reader learns to
         # skip the unknowns section entirely.
         "AWS::CDK::Metadata",
+        # Access control attached to a bucket, not a resource of its own. There is
+        # no charge for having one, and CDK creates one for every bucket that
+        # enforces TLS - so leaving it unknown adds a line to every report that
+        # touches S3, for a cost that is definitively zero.
+        "AWS::S3::BucketPolicy",
     }
 )
+
+# Deliberately *not* in the list above:
+#
+# ``AWS::EC2::VPCEndpoint``. A gateway endpoint (S3, DynamoDB) is free; an interface
+# endpoint costs roughly $0.01 per hour per availability zone plus data processing.
+# The resource type alone does not say which, so calling it free would understate a
+# real recurring cost, and calling it charged would overstate the common case. It
+# stays a visible unknown until an estimator can read ``VpcEndpointType`` and price
+# the two apart - which is the honest answer, not a placeholder for a missing one.
 """Types known to carry no charge of their own.
 
 An internet gateway is free; the NAT Gateway beside it is not. A target group is free;

@@ -32,7 +32,13 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.event == 'pull_request'
     permissions:
+      # `contents: read` is needed for the checkout below. Without it actions/checkout
+      # cannot clone and GitHub answers "Repository not found" - a 404 rather than a
+      # 403, which makes the cause considerably less obvious than it should be.
+      contents: read
+      # To post and update the report.
       pull-requests: write
+      # To download the artifact from the run that triggered this one.
       actions: read
     steps:
       - name: Check out the base branch
