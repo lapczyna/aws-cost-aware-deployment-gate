@@ -78,9 +78,28 @@ class TestTheCommentWorkflowRunsNoPullRequestCode:
     def test_it_grants_no_permissions_at_the_workflow_level(self):
         assert load(COMMENT)["permissions"] == {}
 
-    def test_its_job_may_write_pull_requests_and_nothing_else(self):
+    def test_its_job_holds_exactly_the_three_permissions_it_needs(self):
+        # This assertion previously demanded a set that could not work: without
+        # `contents: read` the checkout fails, and GitHub reports it as "Repository not
+        # found" rather than a permission error. A structural test can pin a permission
+        # set; only running it proves the set is sufficient.
         for job in load(COMMENT)["jobs"].values():
-            assert job.get("permissions") == {"pull-requests": "write", "actions": "read"}
+            assert job.get("permissions") == {
+                "contents": "read",
+                "pull-requests": "write",
+                "actions": "read",
+            }
+
+    def test_it_cannot_write_anything_but_pull_request_comments(self):
+        # The property that actually matters: read access to a public repository's
+        # contents grants nothing, while a second write scope would.
+        for job in load(COMMENT)["jobs"].values():
+            writes = {
+                scope
+                for scope, level in (job.get("permissions") or {}).items()
+                if level == "write"
+            }
+            assert writes == {"pull-requests"}
 
     def test_it_never_checks_out_the_triggering_run(self):
         # The hazard this whole arrangement exists to avoid: checking out
