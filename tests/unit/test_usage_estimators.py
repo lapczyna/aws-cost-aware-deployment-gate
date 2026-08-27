@@ -381,8 +381,27 @@ class TestLoadBalancerDataTransfer:
 
 
 class TestCoverage:
-    def test_thirteen_resource_types_are_priced(self):
-        assert len(REGISTRY.supported_types()) == 13
+    def test_the_expected_resource_types_are_priced(self):
+        # A named set rather than a count. An assertion on the number breaks every time
+        # coverage grows and teaches whoever is adding an estimator to bump the number
+        # without reading what changed - which is how a coverage test stops catching an
+        # estimator being accidentally unregistered.
+        assert set(REGISTRY.supported_types()) == {
+            "AWS::ApiGateway::RestApi",
+            "AWS::ApiGatewayV2::Api",
+            "AWS::CloudWatch::Alarm",
+            "AWS::DynamoDB::Table",
+            "AWS::EC2::EIP",
+            "AWS::EC2::Instance",
+            "AWS::EC2::NatGateway",
+            "AWS::EC2::Volume",
+            "AWS::EKS::Cluster",
+            "AWS::ElasticLoadBalancingV2::LoadBalancer",
+            "AWS::Lambda::Function",
+            "AWS::Logs::LogGroup",
+            "AWS::RDS::DBInstance",
+            "AWS::S3::Bucket",
+        }
 
     def test_every_registered_type_produces_at_least_one_dimension(self):
         for resource_type in REGISTRY.supported_types():
@@ -471,3 +490,73 @@ class TestUnmatchedOverridesAreReported:
             {"version": 1, "resource_overrides": {"Present": {"invocations_per_month": 1}}}
         )
         assert profile.unmatched_overrides([("Present", None)]) == ()
+
+
+class TestCloudWatchAlarms:
+    """An alarm is the rare CloudWatch charge a template fully determines.
+
+    No usage component, a flat monthly rate, and the ``Period`` says which of the two
+    rates applies. Leaving it unknown understated a cost that was knowable — the
+    opposite of this project's usual failure mode and just as dishonest.
+    """
+
+    def test_a_standard_alarm_costs_the_standard_rate(self):
+        estimates = price(single("AWS::CloudWatch::Alarm", Period=300))
+        assert estimates["Alarm-Month"].monthly == Money.of("0.10")
+
+    def test_a_high_resolution_alarm_costs_three_times_as_much(self):
+        # Selected by a Period below a minute, and the sort of thing worth surfacing at
+        # review time rather than discovering on a bill.
+        estimates = price(single("AWS::CloudWatch::Alarm", Period=10))
+        assert estimates["Alarm-Month"].monthly == Money.of("0.30")
+
+    @pytest.mark.parametrize("period", [10, 30])
+    def test_every_documented_high_resolution_period_is_recognised(self, period):
+        estimates = price(single("AWS::CloudWatch::Alarm", Period=period))
+        assert estimates["Alarm-Month"].monthly == Money.of("0.30")
+
+    def test_exactly_sixty_seconds_is_standard(self):
+        # The boundary: high resolution is *below* sixty, not at it.
+        estimates = price(single("AWS::CloudWatch::Alarm", Period=60))
+        assert estimates["Alarm-Month"].monthly == Money.of("0.10")
+
+    def test_a_resolved_period_is_priced_with_high_confidence(self):
+        # Nothing is assumed: the template said which rate applies.
+        estimates = price(single("AWS::CloudWatch::Alarm", Period=300))
+        assert estimates["Alarm-Month"].confidence is Confidence.HIGH
+        assert estimates["Alarm-Month"].assumptions == ()
+
+    def test_a_missing_period_falls_back_to_standard_and_says_so(self):
+        # A service configuration, not a usage volume, so a default is defensible -
+        # provided the report states it. High resolution has to be asked for.
+        estimates = price(single("AWS::CloudWatch::Alarm"))
+        estimate = estimates["Alarm-Month"]
+        assert estimate.monthly == Money.of("0.10")
+        assert estimate.confidence is Confidence.MEDIUM
+        assert estimate.assumptions
+        assert estimate.assumptions[0].provenance is ValueProvenance.BUILTIN_DEFAULT
+        assert "three times" in estimate.assumptions[0].detail
+
+    def test_an_unresolvable_period_also_falls_back(self):
+        template = (
+            "Parameters:\n"
+            "  AlarmPeriod: {Type: Number}\n"
+            "Resources:\n"
+            "  R:\n"
+            "    Type: AWS::CloudWatch::Alarm\n"
+            "    Properties:\n"
+            "      Period: !Ref AlarmPeriod\n"
+        )
+        estimate = price(template)["Alarm-Month"]
+        assert estimate.monthly == Money.of("0.10")
+        assert estimate.confidence is Confidence.MEDIUM
+
+    def test_the_charge_is_fixed_rather_than_usage_based(self):
+        # It accrues whether or not the alarm ever fires, which is what makes it
+        # predictable and what makes two hundred of them add up.
+        estimates = price(single("AWS::CloudWatch::Alarm", Period=300))
+        assert estimates["Alarm-Month"].estimate_type is EstimateType.FIXED
+
+    def test_the_reason_explains_which_resolution_was_chosen(self):
+        estimates = price(single("AWS::CloudWatch::Alarm", Period=10))
+        assert any("high resolution" in r for r in estimates["Alarm-Month"].confidence_reasons)

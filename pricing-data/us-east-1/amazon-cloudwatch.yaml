@@ -24,3 +24,20 @@ prices:
     rate: "0.03"
     unit: GB-Mo
     description: Archived log storage, per GB-month of retained data
+  - id: alarm-standard
+    dimension: Alarm-Month
+    rate: "0.10"
+    unit: Alarm-Mo
+    attributes: {resolution: STANDARD}
+    description: >-
+      One standard-resolution metric alarm, per month. Flat and knowable from the
+      template, unlike almost everything else CloudWatch charges for.
+  - id: alarm-high-resolution
+    dimension: Alarm-Month
+    rate: "0.30"
+    unit: Alarm-Mo
+    attributes: {resolution: HIGH}
+    description: >-
+      One high-resolution alarm, per month. Selected by a Period below 60 seconds,
+      and three times the standard rate - which is the sort of thing worth surfacing
+      at review time rather than discovering on a bill.

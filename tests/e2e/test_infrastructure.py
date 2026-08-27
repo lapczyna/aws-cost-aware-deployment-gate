@@ -25,6 +25,7 @@ import pytest
 
 from cost_gate.adapters.clock import FixedClock
 from cost_gate.config import load_config
+from cost_gate.domain.enums import CostCategory
 from cost_gate.pipeline import AnalysisRequest, run_analysis
 
 pytestmark = pytest.mark.e2e
@@ -221,11 +222,33 @@ class TestTheGateAnalysesItsOwnInfrastructure:
         artifact = self.analyse()
         assert artifact.cost.totals.monthly_delta.amount < Decimal("1.00")
 
-    def test_it_has_no_fixed_cost_at_all(self):
-        # Every charge is per-request or per-gigabyte. Nothing accrues while idle,
-        # which is the design claim, checked rather than asserted in prose.
+    def test_its_only_fixed_cost_is_the_alarm(self):
+        # This assertion used to read "no fixed cost at all", and it passed only because
+        # the alarm was unknown. Pricing the alarm honestly showed the claim had been
+        # flattering: a standard-resolution alarm is a flat ten cents a month whether or
+        # not it ever fires. The claim worth making is the narrower true one.
         artifact = self.analyse()
-        assert artifact.cost.totals.fixed_delta.amount == 0
+        fixed = [
+            component
+            for component in artifact.cost.components
+            if component.category is CostCategory.FIXED
+            and component.monthly_delta is not None
+            and component.monthly_delta.amount != 0
+        ]
+        assert {component.pricing_dimension for component in fixed} == {"Alarm-Month"}
+        assert artifact.cost.totals.fixed_delta.amount < Decimal("1.00")
+
+    def test_nothing_scales_with_time_beyond_that(self):
+        # The design claim that survives: no instance, gateway, cluster or database, so
+        # nothing accrues in proportion to how long the system is left running.
+        artifact = self.analyse()
+        hourly = {"Hours", "InstanceHours", "GB-Seconds"}
+        assert not any(
+            dimension in component.pricing_dimension
+            for component in artifact.cost.components
+            for dimension in hourly
+            if component.pricing_dimension.endswith("Hours")
+        )
 
     def test_it_fits_inside_its_own_budget(self):
         artifact = self.analyse()

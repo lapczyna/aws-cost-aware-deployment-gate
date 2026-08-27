@@ -42,6 +42,7 @@ from cost_gate.estimators.serverless import (
     RestApiEstimator,
 )
 from cost_gate.estimators.storage import (
+    CloudWatchAlarmEstimator,
     CloudWatchLogsEstimator,
     DynamoDbTableEstimator,
     S3BucketEstimator,
@@ -50,6 +51,7 @@ from cost_gate.estimators.storage import (
 __all__ = [
     "COST_FREE_TYPES",
     "ApiGatewayEstimator",
+    "CloudWatchAlarmEstimator",
     "CloudWatchLogsEstimator",
     "DimensionEstimate",
     "DynamoDbTableEstimator",
