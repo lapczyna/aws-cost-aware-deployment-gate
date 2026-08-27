@@ -27,6 +27,7 @@ from cost_gate.cli.demo import demo
 from cost_gate.cli.feedback import feedback_app
 from cost_gate.cli.pricing import pricing_app
 from cost_gate.config import ConfigError, load_config, write_schemas
+from cost_gate.config.strict import strict_findings
 from cost_gate.estimators import COST_FREE_TYPES, default_registry
 from cost_gate.exit_codes import ExitCode
 
@@ -102,11 +103,24 @@ def validate_config(
             help="Skip referenced files that do not exist yet, instead of failing.",
         ),
     ] = False,
+    strict: Annotated[
+        bool,
+        typer.Option(
+            "--strict",
+            help="Also report configuration that is valid but can never take effect.",
+        ),
+    ] = False,
 ) -> None:
     """Validate configuration without running an analysis.
 
     Reports every problem found, each with the file and the path within it, rather than
     stopping at the first. Exits ``ERROR`` (30) if anything is invalid.
+
+    ``--strict`` additionally reports configuration that loads cleanly and cannot do
+    anything: a threshold that can never be crossed, a rule scoped to an environment
+    nothing describes, a condition that is true of every change. None of that is
+    invalid, which is why it is opt-in — but all of it looks like a decision has been
+    recorded when none has.
     """
     try:
         loaded = load_config(config, allow_missing_references=allow_missing)
@@ -142,6 +156,23 @@ def validate_config(
             )
     else:
         console.print("  policies         (none configured)")
+
+    if not strict:
+        return
+
+    findings = strict_findings(loaded)
+    if not findings:
+        console.print("\n[green]strict:[/green] nothing inert found")
+        return
+
+    console.print(f"\n[yellow]strict: {len(findings)} finding(s)[/yellow]")
+    for finding in findings:
+        console.print(f"  [yellow]{finding.location}[/yellow]")
+        console.print(f"    {finding.problem}")
+        console.print(f"    [dim]remedy: {finding.remedy}[/dim]")
+    # A finding is inert configuration rather than invalid configuration, so this exits
+    # non-zero only because the caller asked for that by passing --strict.
+    raise typer.Exit(code=ExitCode.ERROR)
 
 
 @app.command("list-supported-resources")

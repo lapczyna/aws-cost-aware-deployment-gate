@@ -124,7 +124,7 @@ besides (`approval`, `feedback`, `comment`). Five **flags** do not:
 |---|---|
 | `analyze --usage-profile`, `--budgets`, `--policies` | Subsumed by `--config`, which points at all three. A defensible simplification, but they were specified as standalone overrides and a reader following the plan will not find them. |
 | `analyze --pricing-provider fixtures\|aws\|chain` | Cannot exist: there is one provider, because the Price List adapter was never built. |
-| `validate-config --strict` | Simply missing. |
+| ~~`validate-config --strict`~~ | **Added.** Reports configuration that loads cleanly and can never take effect. See [the policy engine](policy-engine.md). |
 
 `cost-gate pricing refresh` exists as a command and reports "not yet implemented" — it is
 the front door to the adapter that was not built.
