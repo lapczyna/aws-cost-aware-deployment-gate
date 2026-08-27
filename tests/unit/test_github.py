@@ -104,18 +104,25 @@ class TestTheArtifactIsUntrusted:
         assert report.stat().st_size < MAX_ARTIFACT_BYTES
 
     @pytest.mark.parametrize(
-        "payload",
+        ("payload", "expected"),
         [
-            "not json at all",
-            "[]",
-            '{"schema_version": "1"}',
-            "null",
+            ("not json at all", "not valid JSON"),
+            ("[]", "not a cost-gate report"),
+            ("null", "not a cost-gate report"),
+            ('{"schema_version": "1"}', "declares schema version"),
+            (
+                '{"schema_version": "' + ARTIFACT_SCHEMA_VERSION + '"}',
+                "not a valid cost-gate report",
+            ),
         ],
     )
-    def test_malformed_payloads_are_refused(self, tmp_path, payload):
+    def test_malformed_payloads_are_refused(self, tmp_path, payload, expected):
+        # Each fails for a different reason and the message says which. A test demanding
+        # one message for all of them would have to be loosened every time the checks
+        # get more specific, which is the wrong direction.
         path = tmp_path / "bad.json"
         path.write_text(payload, encoding="utf-8")
-        with pytest.raises(GitHubError, match="not a valid cost-gate report"):
+        with pytest.raises(GitHubError, match=expected):
             load_untrusted_artifact(path)
 
     def test_an_unknown_field_is_refused(self, tmp_path, report):
@@ -126,6 +133,25 @@ class TestTheArtifactIsUntrusted:
         path = tmp_path / "extra.json"
         path.write_text(json.dumps(payload), encoding="utf-8")
         with pytest.raises(GitHubError, match="not a valid cost-gate report"):
+            load_untrusted_artifact(path)
+
+    def test_the_version_is_checked_before_the_model(self, tmp_path):
+        # The order matters and was wrong. AnalysisArtifact forbids unknown fields, so a
+        # document from a newer tool fails validation on the field it added and never
+        # reaches a version check placed afterwards - which turned a one-line diagnosis
+        # into a bare ValidationError in a workflow log.
+        path = tmp_path / "newer.json"
+        path.write_text(
+            json.dumps({"schema_version": "99", "a_field_from_the_future": True}),
+            encoding="utf-8",
+        )
+        with pytest.raises(GitHubError, match="declares schema version"):
+            load_untrusted_artifact(path)
+
+    def test_the_version_message_explains_why_it_cannot_be_read(self, tmp_path):
+        path = tmp_path / "newer.json"
+        path.write_text(json.dumps({"schema_version": "99"}), encoding="utf-8")
+        with pytest.raises(GitHubError, match="unknown fields are refused"):
             load_untrusted_artifact(path)
 
     def test_a_different_schema_version_is_refused(self, tmp_path, report):
