@@ -38,17 +38,22 @@ cost-gate analyze \
 | `RefreshCatalog` | Compute | 90 GB-seconds | $0.0015 |
 | `Predictions` | Reads | 500 | $0.0001 |
 | `PricingSnapshots` | Requests | 220 | $0.0002 |
-| **Total** | | | **$0.21** |
+| `RefreshFailed` | Alarm | high resolution | $0.1000 |
+| **Total** | | | **$0.31** |
 
-**Fixed cost: $0.00.** Every charge above is per-request or per-gigabyte. Nothing
-accrues while the system is idle — which is the design claim, and
-`tests/e2e/test_infrastructure.py` asserts it rather than leaving it in prose.
+**Fixed cost: $0.10** — the alarm, which is charged whether or not it ever fires.
+Everything else is per-request or per-gigabyte.
 
-Four resource types are **not priced by this version** and appear as visible unknowns:
-`AWS::Budgets::Budget`, `AWS::CloudWatch::Alarm`, `AWS::Events::Rule`, `AWS::SNS::Topic`.
-In practice they are pennies — an alarm is $0.10/month, a budget is free for the first
-two — but the tool does not know that, and saying so is better than guessing. Their
-absence means the $0.21 is a **lower bound**.
+That figure used to read $0.00, and the test asserting it passed only because the alarm
+was *unknown*. Pricing it honestly showed the claim had been flattering. What survives is
+the narrower true statement: nothing here accrues in proportion to how long the system is
+left running — no instance, gateway, cluster or database — and that is what
+`tests/e2e/test_infrastructure.py` asserts now.
+
+Three resource types are **not priced by this version** and appear as visible unknowns:
+`AWS::Budgets::Budget`, `AWS::Events::Rule`, `AWS::SNS::Topic`. In practice they are
+pennies — a budget is free for the first two — but the tool does not know that, and
+saying so is better than guessing. Their absence means the $0.31 is a **lower bound**.
 
 Prices come from the bundled fixture catalog and are illustrative, not authoritative.
 
@@ -88,7 +93,7 @@ ingestion. A Lambda that runs four times a month does not ingest 100 GB. The too
 right; the configuration was wrong. Usage profiles are scoped by environment, so
 pointing a second workload at another application's config gives you that application's
 traffic assumptions applied to your resources. `infrastructure/usage.yaml` now describes
-*this* system, and the estimate fell to $0.21.
+*this* system, and the estimate fell to $0.21 (later $0.31, once alarms were priced).
 
 **Per-resource usage overrides silently did not apply to CDK resources.** Overrides are
 keyed by logical ID, and CDK appends a hash of the construct path to every logical ID —

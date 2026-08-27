@@ -43,18 +43,42 @@ $32/month" is only true if all the traffic is to AWS services, which the templat
 not say. Any rule would need the same discipline as the estimators — cite evidence,
 state the condition, and never promise a saving.
 
-## Built but never exercised against reality
+## Built, and how far it has been exercised
 
-### No pull request has ever run the GitHub integration
+### The GitHub integration, since verified
 
-The workflows are structurally asserted (`tests/unit/test_workflows.py`), the comment
-logic is tested against a fake API, and `scripts/check_workflows.py` enforces the
-privilege split. But **no comment has ever been posted to a real pull request**, so the
-end-to-end path — artifact upload, `workflow_run` trigger, artifact download, comment
-upsert — has not been observed working.
+This entry used to say no pull request had ever exercised it. That is no longer true:
+pull requests #1 and #2 ran the whole path, and it found a bug on the first attempt.
 
-*Why:* opening a pull request against this repository is an outward-facing action, and it
-was not authorised.
+| Stage | Observed |
+|---|---|
+| `cost-gate` triggers on `pull_request` | ✅ |
+| Analysis runs, artifact uploaded | ✅ `REQUIRE_APPROVAL`, +$62.32, 4 unknowns |
+| `workflow_run` fires the privileged job | ✅ |
+| Report re-rendered and posted | ✅ first comment on #2 |
+| A second run **updates in place** | ✅ same comment id, count stayed at 1 |
+
+**What it found.** The privileged job held `pull-requests: write` and `actions: read` but
+not `contents: read`, so `actions/checkout` could not clone. GitHub reports that as
+*"Repository not found"* — a 404 rather than a 403 — which points diagnosis away from
+permissions entirely. Worse, `tests/unit/test_workflows.py` asserted the permissions were
+*exactly* those two, so **the test encoded the bug as a requirement**.
+
+**Why it could only be found this way.** A structural test can pin a configuration; only
+running it proves the configuration is *sufficient*. The test now asserts the three
+permissions the job needs, plus a separate check that `pull-requests` remains the only
+*write* scope — which is the property that actually matters, since read access to a
+public repository's contents grants nothing.
+
+**A second thing worth recording.** The fix could not be validated from the pull request
+that contained it. `workflow_run` always executes the **default branch's** copy of a
+workflow, so the broken version kept running until the fix was merged. That is not an
+obstacle to work around — it is the security property the whole split rests on. A pull
+request cannot modify the privileged workflow that holds a write token.
+
+*Still unobserved:* behaviour on a pull request **from a fork**, which is the case
+`workflow_run` exists to support. Both pull requests so far were from branches on this
+repository, where a token would have been available anyway.
 
 ### Nothing has ever been deployed
 
@@ -91,6 +115,20 @@ tool's job is to say where that boundary falls rather than to paper over it.
 | `Fn::If` on a deploy-time condition | The template is the plan; what exists is decided at deployment. Both branches are carried as scenario values and the cost is unknown. |
 | Single currency | The model has a `Currency` enum so adding one is a data change, but only USD is populated. |
 
+## Planned but absent from the CLI
+
+The original plan sketched a command surface. Every command in it exists, and three more
+besides (`approval`, `feedback`, `comment`). Five **flags** do not:
+
+| Flag | Why |
+|---|---|
+| `analyze --usage-profile`, `--budgets`, `--policies` | Subsumed by `--config`, which points at all three. A defensible simplification, but they were specified as standalone overrides and a reader following the plan will not find them. |
+| `analyze --pricing-provider fixtures\|aws\|chain` | Cannot exist: there is one provider, because the Price List adapter was never built. |
+| `validate-config --strict` | Simply missing. |
+
+`cost-gate pricing refresh` exists as a command and reports "not yet implemented" — it is
+the front door to the adapter that was not built.
+
 ## Things a reviewer would reasonably criticise
 
 * **`integration` was an empty test layer** until this phase, while `dev.py
@@ -106,5 +144,9 @@ tool's job is to say where that boundary falls rather than to paper over it.
   every one was a *wiring* fault between two correct components.
 * **No property-based tests on the feedback arithmetic.** The estimators and the policy
   lattice have Hypothesis coverage; the accuracy quantiles do not.
+* **A structural test asserted a permission set that could not work.** Written up
+  above, under the GitHub integration. It is the sharpest illustration in the project
+  of a limit worth internalising: a structural test can pin a configuration, but only
+  running it proves the configuration is sufficient.
 * **The console renderer is only lightly tested for layout.** It is checked for content
   and for stream discipline, not for how it looks at narrow widths.

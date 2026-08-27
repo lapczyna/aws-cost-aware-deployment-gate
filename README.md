@@ -5,8 +5,9 @@ is deployed**, evaluates it against version-controlled budgets and policies, and
 explainable decision on the pull request.
 
 > **Complete.** Eighteen phases, and an honest account of what it does not do in
-> [the gap analysis](docs/gap-analysis.md) — two phases were never built, no pull
-> request has ever exercised the GitHub integration, and nothing has been deployed.
+> [the gap analysis](docs/gap-analysis.md) — two phases were never built and nothing
+> has been deployed. The GitHub integration has since been verified end to end on
+> real pull requests, which is how it was found to be missing a permission.
 > Every sample report in this repository is a generated artifact, compared byte-for-byte
 > on each test run. None of them is hand-written.
 
@@ -161,7 +162,7 @@ and branch are untouched.
 
 ## Supported AWS resources
 
-Thirteen resource types are priced, and twenty-two more are known to carry no charge
+Fourteen resource types are priced, and twenty-two more are known to carry no charge
 of their own and are reported as **free** rather than unknown. Everything else
 produces a visible `UNKNOWN` component — coverage is finite, and pretending otherwise
 is the failure mode that destroys trust in a cost tool.
@@ -311,9 +312,9 @@ catalog that is explicitly not authoritative.
 The reports state these boundaries rather than leaving them to be inferred.
 
 Two of the eighteen planned phases were never built — the AWS Price List adapter and
-the recommendation engine — and the GitHub integration has never posted a comment to
-a real pull request. [The gap analysis](docs/gap-analysis.md) is the full account,
-including the defects that reached `main` during development and how each was caught.
+the recommendation engine — and nothing has ever been deployed to AWS.
+[The gap analysis](docs/gap-analysis.md) is the full account, including the defects that
+reached `main` during development and how each was caught.
 
 ## Licence
 

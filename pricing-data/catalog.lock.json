@@ -2,7 +2,7 @@
   "files": {
     "manifest.yaml": "sha256:02a0f9f8ad69088d208b7f9aa07974b6242d9074bdd7081929815364452c843f",
     "us-east-1/amazon-api-gateway.yaml": "sha256:c39fb60fc5410ba960337e34522719f058b499f4012c162fa2a48fc1152f2574",
-    "us-east-1/amazon-cloudwatch.yaml": "sha256:5a03422ceccc4e7c4d5ef577f04011e4bfd87986c3034386ca2c8f6d659b3782",
+    "us-east-1/amazon-cloudwatch.yaml": "sha256:7d7e22cf1aae9e9c57b20cf7dbc828623247554f0158a4efe4de426be0f0b667",
     "us-east-1/amazon-dynamodb.yaml": "sha256:5a40aaf5b5383fbaa316c34c61fb636966183e5c036c26100fac70829d91d7ad",
     "us-east-1/amazon-ec2.yaml": "sha256:7d3ba27ecc97368f0d74227a119f5da78399bc9495da3a97811c75305bacc32a",
     "us-east-1/amazon-eks.yaml": "sha256:496119973a6540dabc57cf2e533a24eaa414a4578ed2c179520048fb2bd6db55",

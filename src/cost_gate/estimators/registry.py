@@ -31,6 +31,7 @@ from cost_gate.estimators.serverless import (
     RestApiEstimator,
 )
 from cost_gate.estimators.storage import (
+    CloudWatchAlarmEstimator,
     CloudWatchLogsEstimator,
     DynamoDbTableEstimator,
     S3BucketEstimator,
@@ -190,6 +191,7 @@ def default_registry() -> EstimatorRegistry:
         RestApiEstimator(),
         DynamoDbTableEstimator(),
         S3BucketEstimator(),
+        CloudWatchAlarmEstimator(),
         CloudWatchLogsEstimator(),
     ):
         registry.register(estimator)

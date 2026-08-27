@@ -35,7 +35,12 @@ from cost_gate.estimators.base import (
 from cost_gate.estimators.compute import as_decimal
 from cost_gate.pricing.keys import PriceKey
 
-__all__ = ["CloudWatchLogsEstimator", "DynamoDbTableEstimator", "S3BucketEstimator"]
+__all__ = [
+    "CloudWatchAlarmEstimator",
+    "CloudWatchLogsEstimator",
+    "DynamoDbTableEstimator",
+    "S3BucketEstimator",
+]
 
 DYNAMODB_SERVICE = "AmazonDynamoDB"
 S3_SERVICE = "AmazonS3"
@@ -511,5 +516,85 @@ class CloudWatchLogsEstimator:
                     ),
                     resource=resource.key,
                 ),
+            ),
+        )
+
+
+class CloudWatchAlarmEstimator:
+    """``AWS::CloudWatch::Alarm``.
+
+    Unusually for CloudWatch, this one is knowable. An alarm is a flat monthly charge
+    with no usage component at all, and the template says which rate applies: a
+    ``Period`` below sixty seconds selects high resolution, which costs three times as
+    much. That is worth surfacing at review time rather than on a bill.
+
+    Alarms are individually trivial - ten cents a month - and a monitoring build-out
+    that adds two hundred of them is not. Leaving them unknown understated a cost the
+    template fully determines, which is the opposite of this project's usual failure
+    mode and just as dishonest.
+    """
+
+    resource_types = ("AWS::CloudWatch::Alarm",)
+    service = CLOUDWATCH_SERVICE
+
+    HIGH_RESOLUTION_BELOW_SECONDS = 60
+    """A Period under a minute makes the alarm high-resolution. AWS documents 10 and 30
+    as the supported values; the comparison is written as a threshold so an unexpected
+    value is classified rather than ignored."""
+
+    def estimate(
+        self, resource: NormalizedResource, context: EstimationContext
+    ) -> tuple[DimensionEstimate, ...]:
+        """Price one alarm-month at whichever resolution the template selects."""
+        period = as_decimal(resource.property_value("Period"))
+        assumptions: tuple[Assumption, ...]
+
+        if period is None:
+            # Standard is the defensible default: high resolution has to be asked for
+            # explicitly, and a Period is a service configuration rather than a usage
+            # volume - the kind of default this project does allow, provided it says so.
+            resolution = "STANDARD"
+            confidence = Confidence.MEDIUM
+            assumptions = (
+                Assumption(
+                    subject="resolution",
+                    value="STANDARD",
+                    provenance=ValueProvenance.BUILTIN_DEFAULT,
+                    detail=(
+                        "no resolvable Period, so standard resolution is assumed; a "
+                        "high-resolution alarm costs three times as much"
+                    ),
+                    resource=resource.key,
+                ),
+            )
+            reasons = (
+                "flat monthly charge per alarm, with no usage component",
+                "resolution assumed standard because Period could not be resolved",
+            )
+        else:
+            high = period < self.HIGH_RESOLUTION_BELOW_SECONDS
+            resolution = "HIGH" if high else "STANDARD"
+            confidence = Confidence.HIGH
+            assumptions = ()
+            reasons = (
+                "flat monthly charge per alarm, with no usage component",
+                f"Period of {period}s selects {'high' if high else 'standard'} resolution",
+            )
+
+        return (
+            context.priced(
+                service=self.service,
+                dimension="Alarm-Month",
+                key=PriceKey(
+                    service=self.service,
+                    dimension="Alarm-Month",
+                    region=context.region,
+                    attributes={"resolution": resolution},
+                ),
+                quantity=Decimal(1),
+                estimate_type=EstimateType.FIXED,
+                confidence=confidence,
+                confidence_reasons=reasons,
+                assumptions=assumptions,
             ),
         )
