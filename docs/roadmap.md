@@ -80,19 +80,29 @@ code rather than trusted.
 
 | Item | Reason |
 |---|---|
-| Terraform plan JSON | Adapter interface exists from Phase 3; implementation after the CloudFormation/CDK slice is complete |
+| Terraform plan JSON | **Nothing exists yet** - no parser protocol and no adapter seam. `parsers/` is written against CloudFormation directly, so this needs an interface extracted first, not merely an implementation added |
 | ECS / Fargate estimation | Task-definition sizing is fiddly; emits `UNKNOWN` until a dedicated phase |
 | Savings Plans, Reserved Instances, amortised vs unblended cost | Requires account billing data; documented as FinOps concepts, not modelled |
 | Multi-currency | Domain supports it; MVP catalog is USD only |
 | Multi-region catalog | MVP catalog covers `us-east-1`; other regions resolve to `UNKNOWN` |
-| Live Cost Explorer adapter | Phase 17 ships a deterministic demo provider first |
 
-## Documentation still to be written
+### Built, but never run against AWS
 
-| Document | Phase |
+| Item | State |
 |---|---|
-| `docs/demo-scenarios.md` | 12 (done, generated) |
-| `docs/operations.md` | 15 |
-| `docs/actual-cost-feedback.md` | 17 |
-| `docs/production-readiness.md` | 18 |
-| `docs/runbooks/` | 15–16 |
+| Live Cost Explorer adapter | Built in Phase 17 and tested against a fake client, including its failure paths. It has never been given credentials, so it has never called AWS. |
+
+## Documentation
+
+Every document the plan called for exists, though two were written under different names
+than originally sketched.
+
+| Document | Planned for | State |
+|---|---|---|
+| `demo-scenarios.md` | 12 | Written, and **generated** from the scenarios that exist |
+| `actual-cost-feedback.md` | 17 | Written |
+| `runbooks/cost-approval.md` | 15-16 | Written |
+| `infrastructure.md` | 16 | Written; covers cost and teardown |
+| `gap-analysis.md` | 18 | Written, in place of the planned `production-readiness.md` |
+| ~~`operations.md`~~ | 15 | **Never written.** Its content went into `runbooks/cost-approval.md` and `github-integration.md`; a separate document would have duplicated both |
+| ~~`production-readiness.md`~~ | 18 | **Never written** under that name. `gap-analysis.md` does the job, and names what is missing rather than asserting readiness |

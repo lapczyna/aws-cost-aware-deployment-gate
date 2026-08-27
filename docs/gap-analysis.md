@@ -91,6 +91,20 @@ tool's job is to say where that boundary falls rather than to paper over it.
 | `Fn::If` on a deploy-time condition | The template is the plan; what exists is decided at deployment. Both branches are carried as scenario values and the cost is unknown. |
 | Single currency | The model has a `Currency` enum so adding one is a data change, but only USD is populated. |
 
+## Planned but absent from the CLI
+
+The original plan sketched a command surface. Every command in it exists, and three more
+besides (`approval`, `feedback`, `comment`). Five **flags** do not:
+
+| Flag | Why |
+|---|---|
+| `analyze --usage-profile`, `--budgets`, `--policies` | Subsumed by `--config`, which points at all three. A defensible simplification, but they were specified as standalone overrides and a reader following the plan will not find them. |
+| `analyze --pricing-provider fixtures\|aws\|chain` | Cannot exist: there is one provider, because the Price List adapter was never built. |
+| `validate-config --strict` | Simply missing. |
+
+`cost-gate pricing refresh` exists as a command and reports "not yet implemented" — it is
+the front door to the adapter that was not built.
+
 ## Things a reviewer would reasonably criticise
 
 * **`integration` was an empty test layer** until this phase, while `dev.py
@@ -106,5 +120,13 @@ tool's job is to say where that boundary falls rather than to paper over it.
   every one was a *wiring* fault between two correct components.
 * **No property-based tests on the feedback arithmetic.** The estimators and the policy
   lattice have Hypothesis coverage; the accuracy quantiles do not.
+* **A structural test asserted a permission set that could not work.** The comment
+  workflow's job held `pull-requests: write` and `actions: read` but not
+  `contents: read`, so `actions/checkout` could not clone — and GitHub reports that as
+  "Repository not found", a 404 rather than a 403, which points diagnosis away from
+  permissions entirely. The test asserted the permissions were *exactly* those two, so
+  it encoded the bug as a requirement. Found by opening the first real pull request
+  against this repository, in the final phase. A structural test can pin a
+  configuration; only running it proves the configuration is sufficient.
 * **The console renderer is only lightly tested for layout.** It is checked for content
   and for stream discipline, not for how it looks at narrow widths.
