@@ -161,7 +161,7 @@ and branch are untouched.
 
 ## Supported AWS resources
 
-Thirteen resource types are priced, and twenty-one more are known to carry no charge
+Thirteen resource types are priced, and twenty-two more are known to carry no charge
 of their own and are reported as **free** rather than unknown. Everything else
 produces a visible `UNKNOWN` component — coverage is finite, and pretending otherwise
 is the failure mode that destroys trust in a cost tool.

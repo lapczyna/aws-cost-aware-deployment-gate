@@ -44,11 +44,11 @@ cost-gate analyze \
 accrues while the system is idle — which is the design claim, and
 `tests/e2e/test_infrastructure.py` asserts it rather than leaving it in prose.
 
-Five resource types are **not priced by this version** and appear as visible unknowns:
-`AWS::Budgets::Budget`, `AWS::CloudWatch::Alarm`, `AWS::Events::Rule`,
-`AWS::S3::BucketPolicy`, `AWS::SNS::Topic`. In practice they are pennies — an alarm is
-$0.10/month, a budget is free for the first two — but the tool does not know that, and
-saying so is better than guessing. Their absence means the $0.21 is a **lower bound**.
+Four resource types are **not priced by this version** and appear as visible unknowns:
+`AWS::Budgets::Budget`, `AWS::CloudWatch::Alarm`, `AWS::Events::Rule`, `AWS::SNS::Topic`.
+In practice they are pennies — an alarm is $0.10/month, a budget is free for the first
+two — but the tool does not know that, and saying so is better than guessing. Their
+absence means the $0.21 is a **lower bound**.
 
 Prices come from the bundled fixture catalog and are illustrative, not authoritative.
 
