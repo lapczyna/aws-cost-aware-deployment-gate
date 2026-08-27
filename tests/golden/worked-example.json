@@ -1,5 +1,5 @@
 {
-  "schema_version": "1",
+  "schema_version": "2",
   "tool_version": "0.1.0",
   "generated_at": "2026-01-01T12:00:00Z",
   "run_id": "fixedrun0001",
@@ -910,6 +910,130 @@
     ],
     "region": "us-east-1",
     "currency": "USD"
+  },
+  "recommendations": {
+    "recommendations": [
+      {
+        "rule_id": "public-ipv4-address",
+        "title": "NatEip is charged while allocated, attached or not",
+        "detail": "Every public IPv4 address carries an hourly charge from the moment it is allocated. An address kept for a machine that no longer exists costs the same as one in active use.",
+        "condition": "Applies only if the address is not required. A stable address referenced by DNS, an allowlist held by a third party, or a firewall rule elsewhere is doing a job that releasing it would break.",
+        "addressable_monthly": {
+          "amount": "3.650",
+          "currency": "USD"
+        },
+        "resource": {
+          "stack": "stack",
+          "logical_id": "NatEip"
+        },
+        "evidence": [
+          {
+            "description": "Elastic IP declared in this stack",
+            "resource": {
+              "stack": "stack",
+              "logical_id": "NatEip"
+            },
+            "component_id": null,
+            "source": {
+              "file": "examples/cloudformation/proposed.yaml",
+              "pointer": "/Resources/NatEip",
+              "line": 47
+            }
+          }
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "rule_id": "nat-gateway-endpoints",
+        "title": "NatGateway is charged by the hour whether or not traffic flows",
+        "detail": "A NAT Gateway accrues an hourly charge for as long as it exists, plus a per-gigabyte charge for what passes through it. VPC gateway endpoints for S3 and DynamoDB carry neither.",
+        "condition": "Applies only if the traffic through this gateway is destined for S3 and DynamoDB alone. If anything behind it reaches the public internet, or any AWS service without a gateway endpoint, the gateway is doing work endpoints cannot. Check the flow logs before acting.",
+        "addressable_monthly": {
+          "amount": "32.850",
+          "currency": "USD"
+        },
+        "resource": {
+          "stack": "stack",
+          "logical_id": "NatGateway"
+        },
+        "evidence": [
+          {
+            "description": "NAT Gateway declared in this stack",
+            "resource": {
+              "stack": "stack",
+              "logical_id": "NatGateway"
+            },
+            "component_id": null,
+            "source": {
+              "file": "examples/cloudformation/proposed.yaml",
+              "pointer": "/Resources/NatGateway",
+              "line": 57
+            }
+          }
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "rule_id": "always-on-non-production-compute",
+        "title": "ApplicationServer runs continuously in development",
+        "detail": "Non-production compute is often idle outside working hours. A schedule in the usage profile changes what this tool assumes; it does not change what runs. Stopping the instance is what changes the bill.",
+        "condition": "Applies only if the workload tolerates being stopped. Anything holding state in instance storage, running a long batch, or serving a shared environment other teams depend on does not.",
+        "addressable_monthly": {
+          "amount": "5.4288",
+          "currency": "USD"
+        },
+        "resource": {
+          "stack": "stack",
+          "logical_id": "ApplicationServer"
+        },
+        "evidence": [
+          {
+            "description": "declared in the development environment",
+            "resource": {
+              "stack": "stack",
+              "logical_id": "ApplicationServer"
+            },
+            "component_id": null,
+            "source": {
+              "file": "examples/cloudformation/proposed.yaml",
+              "pointer": "/Resources/ApplicationServer",
+              "line": 83
+            }
+          }
+        ],
+        "confidence": "MEDIUM"
+      },
+      {
+        "rule_id": "always-on-non-production-compute",
+        "title": "Database runs continuously in development",
+        "detail": "Non-production compute is often idle outside working hours. A schedule in the usage profile changes what this tool assumes; it does not change what runs. Stopping the instance is what changes the bill.",
+        "condition": "Applies only if the workload tolerates being stopped. Anything holding state in instance storage, running a long batch, or serving a shared environment other teams depend on does not.",
+        "addressable_monthly": {
+          "amount": "18.792",
+          "currency": "USD"
+        },
+        "resource": {
+          "stack": "stack",
+          "logical_id": "Database"
+        },
+        "evidence": [
+          {
+            "description": "declared in the development environment",
+            "resource": {
+              "stack": "stack",
+              "logical_id": "Database"
+            },
+            "component_id": null,
+            "source": {
+              "file": "examples/cloudformation/proposed.yaml",
+              "pointer": "/Resources/Database",
+              "line": 106
+            }
+          }
+        ],
+        "confidence": "MEDIUM"
+      }
+    ]
   },
   "warnings": [
     "usage override 'AnalyticsFunction' matched no resource in this change"

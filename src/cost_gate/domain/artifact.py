@@ -25,14 +25,27 @@ from cost_gate.domain.changes import ChangeSet
 from cost_gate.domain.cost import CostReport
 from cost_gate.domain.decision import GateDecision
 from cost_gate.domain.enums import ChangeOperation, Confidence, MatchMethod
+from cost_gate.domain.recommendations import RecommendationReport
 
 __all__ = ["ARTIFACT_SCHEMA_VERSION", "AnalysisArtifact", "ChangeSummary", "PricingProvenance"]
 
-ARTIFACT_SCHEMA_VERSION = "1"
+ARTIFACT_SCHEMA_VERSION = "2"
 """Version of this document's shape.
 
-Consumers pin it. It changes only when a field's meaning changes incompatibly, which is
-a different thing from the tool's own version.
+Consumers pin it, and it is a different thing from the tool's own version.
+
+**Adding a field bumps it.** That is stricter than it sounds necessary, and it is what
+the model actually requires: this document is read with ``extra="forbid"``, because it
+crosses a trust boundary and a smuggled field must be a rejection rather than a value
+riding along. A reader therefore cannot accept a document with a field it does not know,
+so every added field is a breaking change for that reader whether or not it is a breaking
+change for a human.
+
+Version 1 was produced before ``warnings`` and ``recommendations`` existed. Both were
+added without a bump, and the consequence surfaced the first time a pull request adding
+one was analysed: the comment workflow runs the *base branch's* copy of the tool, which
+refused the artifact with a bare validation error instead of saying why. A version number
+turns that into "this report is version 2 and I read version 1", which is a diagnosis.
 """
 
 
@@ -130,6 +143,12 @@ class AnalysisArtifact(BaseModel):
     changes: ChangeSummary = Field(default_factory=ChangeSummary)
     decision: GateDecision
     cost: CostReport
+    recommendations: RecommendationReport = Field(default_factory=RecommendationReport)
+    """Patterns worth looking at, with the condition under which each applies.
+
+    Deliberately outside :attr:`decision`. Recommendations never affect the verdict:
+    advice that could fail a build is not advice, and a reader who learns the tool
+    blocks on opinions stops reading the opinions."""
 
     warnings: tuple[str, ...] = ()
     """Advisories about the configuration rather than the change.

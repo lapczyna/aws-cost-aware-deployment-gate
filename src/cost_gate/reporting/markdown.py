@@ -59,6 +59,7 @@ def render_markdown(artifact: AnalysisArtifact, artifact_hint: str = "") -> str:
         _budgets(artifact.decision.budget_evaluations),
         _policies(artifact.decision.policy_evaluations),
         _assumptions(artifact),
+        _recommendations(artifact),
         _footer(artifact, artifact_hint),
     ]
     body = "\n\n".join(section for section in sections if section)
@@ -221,6 +222,41 @@ def _assumptions(artifact: AnalysisArtifact) -> str:
     if len(assumptions) > MAX_TABLE_ROWS:
         rows.append(f"| …{len(assumptions) - MAX_TABLE_ROWS} more | | | |")
     return _collapsed("Assumptions", "\n".join(rows))
+
+
+def _recommendations(artifact: AnalysisArtifact) -> str:
+    """Patterns worth looking at.
+
+    Collapsed, because advice is not a finding: a reader skimming for the verdict
+    should not have to scroll past opinions to reach it. Each entry states the cost
+    being incurred and the condition under which acting on it is right - never a
+    saving, which the tool cannot know.
+    """
+    found = artifact.recommendations.recommendations
+    if not found:
+        return ""
+    rows = []
+    for item in found:
+        amount = (
+            str(item.addressable_monthly)
+            if item.addressable_monthly is not None
+            else "not established"
+        )
+        rows.append(f"**{escape_markdown(item.title, 160)}**")
+        rows.append("")
+        rows.append(f"Currently costing: {amount}")
+        rows.append("")
+        rows.append(escape_markdown(item.detail, 400))
+        rows.append("")
+        rows.append(f"*{escape_markdown(item.condition, 400)}*")
+        rows.append("")
+    body = "\n".join(rows).rstrip()
+    body += (
+        "\n\nThese are patterns worth checking, not instructions. Each states the "
+        "cost being incurred now and what must be true for the change to be right; "
+        "none of them is a promised saving."
+    )
+    return _collapsed(f"Worth a look ({len(found)})", body)
 
 
 def _footer(artifact: AnalysisArtifact, artifact_hint: str) -> str:

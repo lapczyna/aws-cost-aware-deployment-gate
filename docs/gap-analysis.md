@@ -24,25 +24,6 @@ pagination, throttling retry, and a contract test suite run against both provide
 contract suite exists (`tests/contract/`) and currently has one implementation to run
 against.
 
-### The recommendation engine (Phase 10)
-
-**Status: not implemented.** The roadmap has said "planned" for eight phases, which after
-a completed project is not a credible status.
-
-The intended rules were evidence-linked suggestions — NAT Gateway to VPC endpoints,
-always-on development compute, DynamoDB capacity mode, log retention, public IPv4. Every
-input they need already exists in the report: the change set, the components, the
-confidence and the assumptions.
-
-It was deferred once and then never became the most valuable next thing, because the tool
-was useful without it. Naming that honestly is better than carrying "planned" forever.
-
-*The design risk if it is built:* a recommendation engine is where a cost tool most
-easily starts over-claiming. "Replace this NAT Gateway with VPC endpoints and save
-$32/month" is only true if all the traffic is to AWS services, which the template does
-not say. Any rule would need the same discipline as the estimators — cite evidence,
-state the condition, and never promise a saving.
-
 ## Built, and how far it has been exercised
 
 ### The GitHub integration, since verified
@@ -142,6 +123,12 @@ the front door to the adapter that was not built.
   artifact, a budget evaluated against changes it could not affect, and usage overrides
   silently ignored for CDK resources. Each is now pinned by a test; the pattern is that
   every one was a *wiring* fault between two correct components.
+* **Two artifact fields were added without bumping the schema version.** `warnings` in
+  Phase 16 and `recommendations` in Phase 10 both changed a document read with
+  `extra="forbid"`, which makes any added field breaking for a strict reader. Nothing
+  surfaced until a pull request adding one was analysed and the comment workflow — which
+  runs the *base branch's* reader — refused it with a bare validation error. The version
+  is now 2, and the rule is written down where the next person will look.
 * **No property-based tests on the feedback arithmetic.** The estimators and the policy
   lattice have Hypothesis coverage; the accuracy quantiles do not.
 * **A structural test asserted a permission set that could not work.** Written up

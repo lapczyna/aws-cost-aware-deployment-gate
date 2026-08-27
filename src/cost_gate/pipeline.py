@@ -37,6 +37,7 @@ from cost_gate.parsers import TemplateError, load_graph
 from cost_gate.parsers.normalize import DEFAULT_SINGLE_STACK
 from cost_gate.policies import PolicyFacts, build_decision, evaluate_policies
 from cost_gate.pricing import FixtureCatalogProvider, PricingError, PricingProvider
+from cost_gate.recommendations import RecommendationFacts, recommend
 from cost_gate.reporting.reconcile import reconcile_artifact
 
 __all__ = ["AnalysisError", "AnalysisRequest", "run_analysis"]
@@ -184,6 +185,17 @@ def run_analysis(request: AnalysisRequest) -> AnalysisArtifact:
         for key in usage.unmatched_overrides(identities)
     )
 
+    # Advice, computed from the proposed state rather than from the change: a NAT
+    # Gateway that has been there for two years costs the same as one added today, and
+    # whoever is reviewing a change to the stack is best placed to notice.
+    advice = recommend(
+        RecommendationFacts(
+            resources=tuple(proposed.resources),
+            report=cost,
+            environment=context.environment,
+        )
+    )
+
     metadata = provider.catalog_metadata()
     artifact = AnalysisArtifact(
         tool_version=request.tool_version,
@@ -207,6 +219,7 @@ def run_analysis(request: AnalysisRequest) -> AnalysisArtifact:
         changes=ChangeSummary.of(changes),
         decision=decision,
         cost=cost,
+        recommendations=advice,
         warnings=warnings,
     )
 

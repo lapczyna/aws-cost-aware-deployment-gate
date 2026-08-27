@@ -26,6 +26,7 @@ a fake. A test that needs a live repository is a test nobody runs.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -121,20 +122,37 @@ def load_untrusted_artifact(path: Path) -> AnalysisArtifact:
     if size > MAX_ARTIFACT_BYTES:
         raise GitHubError(f"report is {size} bytes; the maximum is {MAX_ARTIFACT_BYTES}")
 
+    text = path.read_text(encoding="utf-8", errors="replace")
+
+    # The version is read before the model, not after. `AnalysisArtifact` forbids unknown
+    # fields, so a document from a newer tool fails validation on the field it added and
+    # never reaches a version check placed afterwards - which is exactly what happened,
+    # and it turned a one-line diagnosis into a bare ValidationError. Version
+    # negotiation has to come first or the version field does nothing.
     try:
-        artifact = AnalysisArtifact.model_validate_json(path.read_text(encoding="utf-8"))
+        declared = json.loads(text)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise GitHubError(f"{path.name} is not valid JSON") from exc
+    if not isinstance(declared, dict):
+        raise GitHubError(f"{path.name} is not a cost-gate report")
+
+    version = declared.get("schema_version")
+    if version != ARTIFACT_SCHEMA_VERSION:
+        raise GitHubError(
+            f"{path.name} declares schema version {version!r}, but this tool reads "
+            f"{ARTIFACT_SCHEMA_VERSION!r}. A report produced by a newer version of the "
+            "tool cannot be read by an older one, because unknown fields are refused "
+            "rather than ignored"
+        )
+
+    try:
+        artifact = AnalysisArtifact.model_validate_json(text)
     except (ValidationError, ValueError, UnicodeDecodeError) as exc:
         # Deliberately not echoing the payload into the error: it is attacker-controlled
         # and this message may reach a log a lot of people can read.
         raise GitHubError(
             f"{path.name} is not a valid cost-gate report: {type(exc).__name__}"
         ) from exc
-
-    if artifact.schema_version != ARTIFACT_SCHEMA_VERSION:
-        raise GitHubError(
-            f"report uses schema version {artifact.schema_version!r}, but this tool "
-            f"produces {ARTIFACT_SCHEMA_VERSION!r}"
-        )
     return artifact
 
 

@@ -16,7 +16,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 7 | Usage-based estimators | done | see git log |
 | 8 | AWS Price List adapter (optional provider) | **not built** | deliberate: no credentials were available, and the protocol has one implementation that nothing depends on replacing. See [gap analysis](gap-analysis.md) |
 | 9 | Budget and policy engine | done | see git log |
-| 10 | FinOps recommendation engine | **not built** | deferred, then never the most valuable next thing. "Planned" after a finished project is not a credible status. See [gap analysis](gap-analysis.md) |
+| 10 | FinOps recommendation engine | done | eight rules, none promising a saving; see [recommendations](recommendations.md) |
 | 11 | Reporting and CLI | done | see git log |
 | 12 | End-to-end demo scenarios | done | see git log |
 | 13 | CDK integration | done | see git log |
