@@ -169,3 +169,85 @@ The comparison is not a claim of superiority — mature tools have far broader s
 The point of building rather than integrating is that the interesting engineering is exactly
 what a wrapper would hide: change detection, uncertainty modelling, and policy evaluation. See
 [ADR 0001](adr/0001-build-versus-integrate.md).
+
+## The AWS Price List adapter
+
+Optional, behind the `aws` extra, and **never the default**. The offline catalog remains
+the provider that works with no account, no credentials and no network, because a tool
+whose default path needs AWS is a tool that cannot be tested.
+
+```yaml
+pricing:
+  provider: aws     # or `chain`: live rates first, the offline catalog behind them
+```
+
+Selecting `aws` without `boto3` installed is an **error**, not a fallback to the offline
+catalog. A silent fallback would let somebody believe they were pricing against live
+rates when they were not.
+
+A cache sits in front of it. The API is rate-limited and one analysis asks for the same
+rate once per resource, so without it a stack with forty identical instances makes forty
+identical calls and gets throttled for its trouble.
+
+### It has never called AWS
+
+It is exercised entirely through `botocore.Stubber` — 31 tests covering request shape,
+pagination, throttling with jittered backoff, non-transient failure, and every way it
+refuses to answer. The Stubber validates requests against botocore's own service model,
+so a malformed request fails those tests exactly as it would fail the real API.
+
+**The responses are ones this repository wrote.** The request shapes and the response
+parsing are pinned; the behaviour of the live service is not. Treat the first live run as
+a test.
+
+### The mapping is partial, deliberately
+
+Turning a `PriceKey` into Price List filters is the genuinely hard part. The API describes
+products by `productFamily`, `usagetype` and `operation`, none of which corresponds neatly
+to a billing dimension.
+
+| Covered | Not covered |
+|---|---|
+| NAT Gateway hours and data processing | Lambda requests and GB-seconds |
+| Public IPv4 hours | DynamoDB capacity units and request units |
+| EKS control plane hours | API Gateway requests |
+| ALB hours and LCU hours | CloudWatch Logs ingestion and storage |
+| EC2 and RDS instance hours | S3 request charges |
+| EBS, RDS and S3 storage | Data transfer |
+
+The absent ones are usage-based, and their products are split across free tiers and tiered
+rates in ways a single `TERM_MATCH` query does not express. A filter returning *a* rate
+rather than *the* rate is worse than no filter, so an unmapped key returns
+`PriceNotFound` naming the gap.
+
+### Ambiguity is refused, not resolved
+
+If the filters match several products carrying different rates, the adapter reports that
+rather than picking one:
+
+```
+the filters matched 3 different rates for InstanceHours; refusing to choose between them
+  remedy: narrow the key's attributes so exactly one product matches
+```
+
+A tool that silently selects among candidate prices is worse than one admitting it could
+not tell them apart: the wrong pick is invisible, and the refusal is not.
+
+Zero-rated products are skipped for the same reason. The Price List carries `$0.00`
+entries for free tiers and for the far side of tiered rates, and treating one as the
+answer would report a paid resource as free — the single worst thing this tool could do.
+
+### IAM
+
+```json
+{
+  "Effect": "Allow",
+  "Action": ["pricing:GetProducts", "pricing:DescribeServices"],
+  "Resource": "*"
+}
+```
+
+Read-only, and the two calls a lookup actually makes. The Price List API has no
+resource-level permissions, so `*` is unavoidable there; the narrowing comes from the
+action list. The API is served only from `us-east-1`, `eu-central-1` and `ap-south-1`, and
+the endpoint region is unrelated to the region being priced.

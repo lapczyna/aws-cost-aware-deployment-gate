@@ -36,7 +36,8 @@ from cost_gate.estimators import EstimationContext, default_registry, estimate_g
 from cost_gate.parsers import TemplateError, load_graph
 from cost_gate.parsers.normalize import DEFAULT_SINGLE_STACK
 from cost_gate.policies import PolicyFacts, build_decision, evaluate_policies
-from cost_gate.pricing import FixtureCatalogProvider, PricingError, PricingProvider
+from cost_gate.pricing import PricingError, PricingProvider
+from cost_gate.pricing.selection import build_provider
 from cost_gate.recommendations import RecommendationFacts, recommend
 from cost_gate.reporting.reconcile import reconcile_artifact
 
@@ -128,15 +129,18 @@ def run_analysis(request: AnalysisRequest) -> AnalysisArtifact:
     except TemplateError as exc:
         raise AnalysisError([exc.render()]) from exc
 
+    catalog = request.catalog or (
+        Path(request.config.catalog_path)
+        if request.config and request.config.catalog_path
+        else None
+    )
+    # `fixtures` unless the configuration says otherwise. Selecting `aws` is a
+    # deliberate act that needs boto3 and credentials, and build_provider raises rather
+    # than falling back - a silent fallback would let somebody believe they were pricing
+    # against live rates when they were not.
+    kind = request.config.root.pricing.provider if request.config else "fixtures"
     try:
-        provider: PricingProvider = FixtureCatalogProvider(
-            request.catalog
-            or (
-                Path(request.config.catalog_path)
-                if request.config and request.config.catalog_path
-                else None
-            )
-        )
+        provider: PricingProvider = build_provider(kind, catalog=catalog)
     except PricingError as exc:
         raise AnalysisError([str(exc)]) from exc
 

@@ -5,8 +5,8 @@ is deployed**, evaluates it against version-controlled budgets and policies, and
 explainable decision on the pull request.
 
 > **Complete.** Eighteen phases, and an honest account of what it does not do in
-> [the gap analysis](docs/gap-analysis.md) — one phase was never built and nothing
-> has been deployed. The GitHub integration has since been verified end to end on
+> [the gap analysis](docs/gap-analysis.md) — every phase is built, nothing has been
+> deployed to AWS, and two adapters have never met a live endpoint. The GitHub integration has since been verified end to end on
 > real pull requests, which is how it was found to be missing a permission.
 > Every sample report in this repository is a generated artifact, compared byte-for-byte
 > on each test run. None of them is hand-written.
@@ -335,8 +335,8 @@ catalog that is explicitly not authoritative.
 
 The reports state these boundaries rather than leaving them to be inferred.
 
-One of the eighteen planned phases was never built — the AWS Price List adapter — and
-nothing has ever been deployed to AWS.
+Nothing has ever been deployed to AWS, and the Price List and Cost Explorer adapters
+have never called it — both are exercised only against stubs.
 [The gap analysis](docs/gap-analysis.md) is the full account, including the defects that
 reached `main` during development and how each was caught.
 

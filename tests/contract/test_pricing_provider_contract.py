@@ -19,11 +19,13 @@ The promises:
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
+from cost_gate.adapters.aws_price_list import AwsPriceListProvider
 from cost_gate.domain.money import Money
 from cost_gate.pricing import (
     CachingProvider,
@@ -63,11 +65,87 @@ def _chained() -> ChainProvider:
     return ChainProvider(providers=[_catalog()])
 
 
+class _CatalogBackedPriceList:
+    """A Price List client that answers from the offline catalog.
+
+    Not a Stubber: the contract suite makes several lookups per test and pre-programming
+    a response for each would test the stub rather than the adapter. This translates the
+    adapter's own request back into a catalog lookup and returns it in Price List shape,
+    so the adapter is held to the same contract as every other provider using the same
+    underlying data.
+
+    Its failure modes are covered separately in ``test_aws_price_list.py``.
+    """
+
+    def __init__(self) -> None:
+        self._catalog = FixtureCatalogProvider(CATALOG)
+
+    def get_products(self, **kwargs: object) -> dict[str, object]:
+        filters = {f["Field"]: f["Value"] for f in kwargs.get("Filters", [])}  # type: ignore[union-attr,index]
+        service = str(kwargs.get("ServiceCode", ""))
+        dimension = _DIMENSION_BY_FILTERS.get((service, filters.get("productFamily", "")))
+        if dimension is None:
+            return {"PriceList": []}
+
+        attributes = {
+            name: filters[field]
+            for name, field in (
+                ("instanceType", "instanceType"),
+                ("operatingSystem", "operatingSystem"),
+            )
+            if field in filters
+        }
+        result = self._catalog.lookup(
+            PriceKey(
+                service=service,
+                dimension=dimension,
+                region=filters.get("regionCode", "us-east-1"),
+                attributes=attributes,
+            )
+        )
+        if isinstance(result, PriceNotFound):
+            return {"PriceList": []}
+        return {
+            "PriceList": [
+                json.dumps(
+                    {
+                        "product": {"sku": "FAKE"},
+                        "terms": {
+                            "OnDemand": {
+                                "FAKE.T": {
+                                    "priceDimensions": {
+                                        "FAKE.T.D": {
+                                            "unit": result.unit,
+                                            "description": result.description,
+                                            "pricePerUnit": {"USD": str(result.unit_price.amount)},
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    }
+                )
+            ]
+        }
+
+
+_DIMENSION_BY_FILTERS = {
+    ("AmazonVPC", "NAT Gateway"): "NatGateway-Hours",
+    ("AmazonEC2", "Compute Instance"): "InstanceHours",
+}
+"""Enough of the reverse mapping for the keys the contract suite uses."""
+
+
+def _aws() -> AwsPriceListProvider:
+    return AwsPriceListProvider(_CatalogBackedPriceList(), sleep=lambda _: None)
+
+
 @pytest.fixture(
     params=[
         pytest.param(_catalog, id="fixture-catalog"),
         pytest.param(_cached, id="caching"),
         pytest.param(_chained, id="chain"),
+        pytest.param(_aws, id="aws-price-list"),
     ]
 )
 def provider(request) -> PricingProvider:
@@ -159,8 +237,21 @@ class TestQuoteArithmetic:
         assert isinstance(result, PriceQuote)
         assert result.cost_for(Decimal("0")) == Money.zero()
 
-    def test_a_sub_cent_rate_survives_multiplication(self, provider):
-        result = provider.lookup(
+
+class TestPrecisionOnTheOfflineCatalog:
+    """Not part of the shared contract, and it used to be.
+
+    The test below asks for a Lambda rate, which the offline catalog has and the Price
+    List adapter deliberately does not map. That made it a *coverage* assertion inside a
+    *contract* suite - and which provider knows which key is not a contract property.
+    How a provider behaves is: it answers correctly, or it refuses correctly.
+
+    Left here rather than deleted, because sub-cent precision is worth pinning
+    somewhere: a per-request rate rounded to cents vanishes entirely.
+    """
+
+    def test_a_sub_cent_rate_survives_multiplication(self):
+        result = _catalog().lookup(
             PriceKey(
                 service="AWSLambda",
                 dimension="Requests",
