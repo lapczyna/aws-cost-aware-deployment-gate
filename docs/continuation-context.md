@@ -25,6 +25,9 @@ import-linter. Seven ADRs; the four that constrain everything else:
 
 ## Completed phases
 
+All nineteen. Phases 8 and 10 were deferred during the original run and built afterwards,
+which is why they appear out of chronological order.
+
 | Phase | Description | Commit |
 |---|---|---|
 | 0 | Architecture documentation, ADRs, repository scaffolding | `64c862c` |
@@ -36,9 +39,9 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 5 | Pricing provider framework | `25f15be` |
 | 6 | Fixed-cost AWS estimators | `e1129a5` |
 | 7 | Usage-based estimators | `43318e6` |
-| 8 | AWS Price List adapter | **skipped for now** (see below) |
+| 8 | AWS Price List adapter | `0db3692` (PR #5) |
 | 9 | Budget and policy engine | `ae602a8` |
-| 10 | FinOps recommendation engine | **deferred** — nothing depends on it |
+| 10 | FinOps recommendation engine | `c0af420` (PR #4) |
 | 11 | Reporting, CLI and the end-to-end pipeline | `617ce44`, fixed in `902ec6c` |
 | 12 | Deterministic demo scenarios | `4eb6e63`, packaged in `a5178e4` |
 | 13 | CDK integration | `50cc39e` |
@@ -46,14 +49,31 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 15 | Approval and deployment safeguards | `1214314` |
 | 16 | Optional serverless AWS infrastructure (synth only) | `c10f92f` |
 | 17 | Actual-cost feedback prototype | `077aa68` |
-| 18 | Portfolio and production-readiness review | *(recorded at commit time)* |
+| 18 | Portfolio and production-readiness review | `e1efc11` |
+
+Five pull requests followed the review, each merged through the gate's own CI:
+
+| PR | What | Merge |
+|---|---|---|
+| #1 | S3 bucket policies treated as cost-free; **found the missing `contents: read`** | `49acf92` |
+| #2 | CloudWatch alarms priced | `3bf3c5c` |
+| #3 | `validate-config --strict` | `38b613e` |
+| #4 | Recommendation engine (Phase 10) | `c0af420` |
+| #5 | Price List adapter (Phase 8) | `0db3692` |
 
 ## Current state of the repository
 
-The tool is **complete end to end**: `cost-gate analyze` reads two CloudFormation
-snapshots, prices thirteen resource types, applies budgets and policies, renders the
-result as console/JSON/Markdown, and exits with a code CI can act on. What remains is
-breadth (more scenarios, CDK input, the GitHub integration), not missing structure.
+**Every planned phase is built.** `cost-gate analyze` reads CloudFormation or
+synthesised CDK, prices fourteen resource types (twenty-two more are known to be free),
+applies budgets and policies, recommends without promising savings, renders
+console/JSON/Markdown, posts a pull-request comment through a privilege split, binds
+approvals to a fingerprint of what was approved, and compares its predictions against
+observed cost.
+
+1659 tests, 92% coverage, eighteen demo scenarios. What remains is in
+`docs/gap-analysis.md`, and it is all about *contact with reality* rather than missing
+structure: nothing has been deployed to AWS, and the Price List and Cost Explorer
+adapters have never met a live endpoint.
 
 Domain (`src/cost_gate/domain/`):
 
@@ -247,9 +267,21 @@ named. It never blocks anything. `FixtureObservationProvider` is the default and
 only one CI exercises; `CostExplorerObservationProvider` is optional and tested against
 a fake client.
 
-Still absent:
-`recommendations/`, `observability/`, and the AWS Price List adapter (Phase 8, skipped
-deliberately - the offline catalog is the default provider so nothing depends on it).
+`recommendations/` (Phase 10) — `rules.py`, `engine.py`, with the models in
+`domain/recommendations.py` because import-linter refused them anywhere else. Eight
+evidence-linked rules. A recommendation **never promises a saving**: it names the cost
+being incurred, the condition under which the pattern applies, and the evidence. The
+model rejects "save $…" phrasing outright, and recommendations never touch the decision.
+
+`adapters/aws_price_list.py` and `pricing/selection.py` (Phase 8) — the optional live
+provider, behind the `aws` extra, never the default. Its dimension mapping is partial on
+purpose and it refuses ambiguity rather than choosing. **It has never called AWS.**
+
+`config/strict.py` — `validate-config --strict`, which finds configuration that loads
+cleanly and can never take effect.
+
+Still absent: `observability/`. Nothing depends on it, and the reporting layer covers
+what it would have.
 
 ## Environment facts that affect implementation
 
@@ -449,7 +481,39 @@ deliberately - the offline catalog is the default provider so nothing depends on
     rather than a number; and **no distribution at all** below five comparable pairs.
 56. Cost Explorer **charges per request**. Querying once per prediction would put a line
     item on the bill this tool exists to watch, so the adapter fetches once per window.
-57. `git checkout -- <path>` silently does nothing for an **untracked** file. When
+57. **A structural test can pin a configuration; only running it proves the
+    configuration is *sufficient*.** The comment workflow's job asserted permissions of
+    exactly `pull-requests: write` and `actions: read` — a set that cannot work, because
+    `actions/checkout` needs `contents: read`. The test encoded the bug as a
+    requirement, and GitHub reported the symptom as "Repository not found" (a 404, not a
+    403), pointing diagnosis away from permissions entirely. Found by opening the first
+    real pull request.
+58. **`workflow_run` always runs the default branch's copy of a workflow.** A fix to the
+    privileged workflow cannot be validated from the pull request containing it. That is
+    the security property the whole split rests on, not an obstacle: a pull request
+    cannot change what the privileged half does.
+59. **Adding a field to a document read with `extra="forbid"` is a breaking change for
+    its reader.** `warnings` and `recommendations` were both added to a v1 artifact
+    without a bump; nothing surfaced until a pull request adding one was analysed by the
+    base branch's reader. The version is 2 now. And the version must be read *before*
+    the model, or strict validation fails on the new field and the version check never
+    runs — which is what turned a one-line diagnosis into a bare `ValidationError`.
+60. **Coverage is not a contract property.** A shared provider-contract test that
+    demands a specific key be answerable stops being a contract test the moment a second
+    implementation covers different keys. What a provider must do is answer correctly or
+    refuse correctly.
+61. **A timestamp stamped per lookup breaks determinism.** `AwsPriceListProvider` set
+    `retrieved_at` on every call, so two lookups of one key were unequal and reports
+    would not have been byte-identical. It surfaced as a flake that passed in isolation
+    and failed under random ordering. Stamp once, at construction.
+62. **On `pull_request`, GitHub evaluates `paths` against the PR's cumulative diff**, not
+    the individual push. A docs-only push to a branch whose PR touches `src/` still
+    triggers the workflow.
+63. **Install what the tests need into the declared extras, not by hand.** boto3 was
+    installed locally while building the adapter, so its tests passed here and failed on
+    three CI runners. `pip install -e .[dev]` into an empty environment is the only
+    honest check.
+64. `git checkout -- <path>` silently does nothing for an **untracked** file. When
     probing whether a test really fails, revert the probe explicitly and re-check.
 
 ## Verification commands
@@ -506,30 +570,41 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
 
 ## Exact recommended next action
 
-**The eighteen-phase plan is complete.** `docs/gap-analysis.md` is the honest account of
-what is missing; the two obvious candidates for further work are named there.
+**There is no next phase.** All nineteen are built, and `docs/gap-analysis.md` is the
+honest account of what remains — all of it about *contact with reality* rather than
+missing structure.
 
-If work continues, in order of value:
+If work continues, in order of what would actually change the project's standing:
 
-1. **The recommendation engine (Phase 10).** Every input it needs is already in the
-   report. The design risk is over-claiming: "replace this NAT Gateway and save $32" is
-   only true if all the traffic is to AWS services, which a template does not say. Any
-   rule needs the estimators' discipline - cite evidence, state the condition, never
-   promise a saving.
-2. **The AWS Price List adapter (Phase 8).** The `PricingProvider` protocol is the right
-   seam and `tests/contract/` already holds a conformance suite with one implementation
-   to run against. Needs credentials to be worth more than a mock.
-3. **Exercise the GitHub integration on a real pull request.** Everything is structurally
-   asserted and nothing has been observed working end to end. Requires the user's
-   authorisation - it is an outward-facing action.
+1. **Run something against a real AWS account.** Both optional adapters — Price List and
+   Cost Explorer — are exercised only against stubs, and `infrastructure/` has never been
+   deployed. Every one of those is a claim the repository is careful to label as
+   untested; making one of them true is worth more than any new feature.
+   **This needs the user's explicit approval.** Nothing here obtains AWS credentials, and
+   `scripts/check_workflows.py` fails the build if a workflow tries.
+2. **Exercise the GitHub integration from a fork.** Pull requests #1–#5 all came from
+   branches on this repository, where a token would have been available anyway. The fork
+   case is the one `workflow_run` exists to support and the one still unobserved.
+3. **Widen the Price List dimension mapping.** Eleven dimensions are mapped; the
+   usage-based ones are not, because their products split across free tiers and tiered
+   rates in ways a single `TERM_MATCH` does not express. Doing it properly means handling
+   tiers, which is a design problem rather than a typing one.
+4. **Property-based tests on the feedback arithmetic.** The estimators and the policy
+   lattice have Hypothesis coverage; the accuracy quantiles do not.
 
-Standing constraints that must survive any further work:
+Invariants that must survive anything further. Each is mechanically enforced, and the
+enforcement is named so it can be extended rather than duplicated:
 
-* an unknown cost is never zero, and never hidden;
-* a `BLOCK` is never approvable;
-* accuracy feedback never blocks a build;
-* nothing in this repository obtains AWS credentials or deploys anything.
+| Invariant | Enforced by |
+|---|---|
+| An unknown cost is never zero and never hidden | `reporting/reconcile.py`, `tests/e2e/test_scenarios.py` |
+| A `BLOCK` is never approvable | `approvals.py`, `tests/unit/test_approvals.py` |
+| Accuracy feedback never blocks a build | `tests/unit/test_cli_feedback.py` |
+| Recommendations never affect the decision | `tests/e2e/test_analyze.py` |
+| A recommendation never promises a saving | a validator on `domain/recommendations.py` |
+| Nothing obtains AWS credentials or deploys | `scripts/check_workflows.py`, `tests/unit/test_workflows.py` |
+| Reports are byte-identical between runs | `tests/golden/`, `adapters/clock.py` |
 
-`scripts/check_workflows.py`, `tests/unit/test_workflows.py` and
-`tests/unit/test_approvals.py` are what enforce the last three. Extend those rather than
-adding a fourth mechanism.
+Four commands regenerate committed output, and all four must leave no diff on a clean
+tree: `dev.py docs`, `dev.py golden --update`, `dev.py synth` (needs Node), and
+`cost-gate schema export --out schemas/`.
