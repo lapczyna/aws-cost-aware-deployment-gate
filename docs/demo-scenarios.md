@@ -1,6 +1,6 @@
 # Demonstration scenarios
 
-Seventeen changes, each chosen because it shows something the others do not. All of them
+Eighteen changes, each chosen because it shows something the others do not. All of them
 run offline: no AWS account, no credentials, no network access.
 
 ```bash

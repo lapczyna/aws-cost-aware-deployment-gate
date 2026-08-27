@@ -15,7 +15,7 @@ from cost_gate.demo import load_scenarios
 
 PREAMBLE = """# Demonstration scenarios
 
-Seventeen changes, each chosen because it shows something the others do not. All of them
+{count} changes, each chosen because it shows something the others do not. All of them
 run offline: no AWS account, no credentials, no network access.
 
 ```bash
@@ -85,6 +85,29 @@ carries its own complete configuration — see `budget-exhausted`.
 """
 
 
+_NUMERALS = {
+    12: "Twelve",
+    13: "Thirteen",
+    14: "Fourteen",
+    15: "Fifteen",
+    16: "Sixteen",
+    17: "Seventeen",
+    18: "Eighteen",
+    19: "Nineteen",
+    20: "Twenty",
+}
+
+
+def _spell(count: int) -> str:
+    """Spell a small count, so the opening sentence reads as prose.
+
+    Computed rather than written down: a generated document that hardcodes a number
+    it could derive is one that goes stale, which defeats the point of generating
+    it. This one did - it said seventeen after an eighteenth scenario was added.
+    """
+    return _NUMERALS.get(count, str(count))
+
+
 def main() -> None:
     rows = []
     sections = []
@@ -127,7 +150,10 @@ def main() -> None:
         "|---|---|---:|---|",
         *rows,
     ]
-    document = PREAMBLE + "\n".join(table) + "\n\n" + "\n".join(sections) + FOOTER
+    # str.replace rather than str.format: the preamble contains YAML braces
+    # that format() would try to interpret as fields.
+    preamble = PREAMBLE.replace("{count}", _spell(len(rows)))
+    document = preamble + "\n".join(table) + "\n\n" + "\n".join(sections) + FOOTER
     Path("docs/demo-scenarios.md").write_text(document, encoding="utf-8", newline="\n")
     print(f"wrote docs/demo-scenarios.md ({len(rows)} scenarios)")
 

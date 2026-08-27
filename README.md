@@ -4,9 +4,11 @@ A CI/CD gate that estimates the monthly AWS cost impact of an infrastructure cha
 is deployed**, evaluates it against version-controlled budgets and policies, and returns an
 explainable decision on the pull request.
 
-> **Project status: Phase 17 — predictions can be compared against observed cost, reported as a signed distribution per service with every uncomparable pair named. One phase remains: the portfolio review.**
-> This README is a skeleton. Sections marked *(pending)* are completed in later phases, and all
-> sample reports will be generated artifacts rather than hand-written illustrations.
+> **Complete.** Eighteen phases, and an honest account of what it does not do in
+> [the gap analysis](docs/gap-analysis.md) — two phases were never built, no pull
+> request has ever exercised the GitHub integration, and nothing has been deployed.
+> Every sample report in this repository is a generated artifact, compared byte-for-byte
+> on each test run. None of them is hand-written.
 
 ## The problem
 
@@ -52,8 +54,13 @@ See [`docs/estimation-methodology.md`](docs/estimation-methodology.md).
 | [Policy engine](docs/policy-engine.md) | Budgets, predicate grammar, decision precedence, exit codes |
 | [GitHub integration](docs/github-integration.md) | Workflows, comment idempotency, branch protection, forks |
 | [Security](docs/security.md) | Threat model, trigger safety, OIDC, input handling, supply chain |
+| [Demo scenarios](docs/demo-scenarios.md) | What each bundled scenario shows, and how a scenario asserts |
+| [Actual-cost feedback](docs/actual-cost-feedback.md) | Why there is no accuracy percentage, and what cannot be compared |
+| [Optional infrastructure](docs/infrastructure.md) | The synth-only CDK app, what it would cost, and teardown |
+| [Approval runbook](docs/runbooks/cost-approval.md) | For whoever is asked to approve a gated change |
 | [ADRs](docs/adr/README.md) | Decisions, alternatives and consequences |
 | [Roadmap](docs/roadmap.md) | Phases, service coverage, deferred work |
+| [Gap analysis](docs/gap-analysis.md) | What this does not do, and why — read this one |
 | [Example configuration](examples/config/) | Annotated `cost-gate.yaml` and usage profile |
 | [JSON Schemas](schemas/) | Generated from the models; validate config and consume reports |
 
@@ -114,7 +121,7 @@ hand. Regenerate them with `python scripts/dev.py golden --update`.
 
 ## Local demo
 
-Seventeen scenarios, offline, no credentials:
+Eighteen scenarios, offline, no credentials:
 
 ```bash
 cost-gate demo --list                                 # what each one shows
@@ -154,8 +161,16 @@ and branch are untouched.
 
 ## Supported AWS resources
 
-See [the roadmap](docs/roadmap.md#planned-service-coverage). Once the CLI exists,
-`cost-gate list-supported-resources` reports live coverage from the estimator registry.
+Thirteen resource types are priced, and twenty-one more are known to carry no charge
+of their own and are reported as **free** rather than unknown. Everything else
+produces a visible `UNKNOWN` component — coverage is finite, and pretending otherwise
+is the failure mode that destroys trust in a cost tool.
+
+```bash
+cost-gate list-supported-resources
+```
+
+The command reads the estimator registry, so this claim cannot drift from the code.
 
 ## GitHub Actions setup
 
@@ -294,6 +309,11 @@ outside this repository. It uses on-demand **list** prices from a checked-in, ca
 catalog that is explicitly not authoritative.
 
 The reports state these boundaries rather than leaving them to be inferred.
+
+Two of the eighteen planned phases were never built — the AWS Price List adapter and
+the recommendation engine — and the GitHub integration has never posted a comment to
+a real pull request. [The gap analysis](docs/gap-analysis.md) is the full account,
+including the defects that reached `main` during development and how each was caught.
 
 ## Licence
 

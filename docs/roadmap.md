@@ -14,9 +14,9 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 5 | Pricing provider framework | done | see git log |
 | 6 | Fixed-cost AWS estimators | done | see git log |
 | 7 | Usage-based estimators | done | see git log |
-| 8 | AWS Price List adapter (optional provider) | skipped for now | the offline catalog is the default provider, so nothing downstream depends on it |
+| 8 | AWS Price List adapter (optional provider) | **not built** | deliberate: no credentials were available, and the protocol has one implementation that nothing depends on replacing. See [gap analysis](gap-analysis.md) |
 | 9 | Budget and policy engine | done | see git log |
-| 10 | FinOps recommendation engine | planned | deferred until after Phase 11 |
+| 10 | FinOps recommendation engine | **not built** | deferred, then never the most valuable next thing. "Planned" after a finished project is not a credible status. See [gap analysis](gap-analysis.md) |
 | 11 | Reporting and CLI | done | see git log |
 | 12 | End-to-end demo scenarios | done | see git log |
 | 13 | CDK integration | done | see git log |
@@ -24,7 +24,7 @@ Status legend: `done` · `in progress` · `planned` · `deferred`
 | 15 | Approval and deployment safeguards | done | see git log |
 | 16 | Optional serverless AWS infrastructure (synth only) | done | never deployed |
 | 17 | Actual-cost feedback prototype | done | see git log |
-| 18 | Portfolio and production-readiness review | planned | |
+| 18 | Portfolio and production-readiness review | done | see git log |
 
 Phases 0–14 constitute the MVP. Phases 15–18 are secondary and may be reordered.
 

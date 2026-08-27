@@ -45,7 +45,8 @@ import-linter. Seven ADRs; the four that constrain everything else:
 | 14 | GitHub pull-request integration | `c35aea2` |
 | 15 | Approval and deployment safeguards | `1214314` |
 | 16 | Optional serverless AWS infrastructure (synth only) | `c10f92f` |
-| 17 | Actual-cost feedback prototype | *(recorded at commit time)* |
+| 17 | Actual-cost feedback prototype | `077aa68` |
+| 18 | Portfolio and production-readiness review | *(recorded at commit time)* |
 
 ## Current state of the repository
 
@@ -505,31 +506,30 @@ pricing catalog, and that `cost-gate pricing verify` passes against the packaged
 
 ## Exact recommended next action
 
-**Phase 18 — portfolio and production-readiness review.** The last phase. It is a review,
-not a feature: the job is to verify that every claim the repository makes is true, and to
-fix or retract the ones that are not.
+**The eighteen-phase plan is complete.** `docs/gap-analysis.md` is the honest account of
+what is missing; the two obvious candidates for further work are named there.
 
-* **Verify every claim in the README against the code.** Each feature listed must exist
-  and be demonstrable by a command a reader can run. Anything aspirational gets moved to
-  the roadmap or deleted.
-* **Clean-checkout verification.** Clone into an empty directory, `pip install -e .[dev]`,
-  run `dev.py all`, run the demo. Nothing may depend on state only this machine has.
-* **Gap analysis, written down.** What a reviewer would criticise, stated before they
-  have to: Phase 8 skipped, Phase 10 (recommendations) never built, no real pull request
-  ever exercised the GitHub integration, nothing ever deployed, pricing fixtures are
-  hand-curated and illustrative.
-* Grep for `TODO`, `FIXME`, `pending`, `(later phase)` and either implement, delete or
-  convert each into an honest roadmap entry.
-* Regenerate every generated artifact (`dev.py docs`, `golden --update`, `synth`,
-  `schema export`) and confirm the diff is empty.
-* Consider whether Phase 10 is worth building or worth formally dropping. The roadmap
-  currently says "planned", which after eighteen phases is not credible.
+If work continues, in order of value:
 
-Things Phase 17 established:
+1. **The recommendation engine (Phase 10).** Every input it needs is already in the
+   report. The design risk is over-claiming: "replace this NAT Gateway and save $32" is
+   only true if all the traffic is to AWS services, which a template does not say. Any
+   rule needs the estimators' discipline - cite evidence, state the condition, never
+   promise a saving.
+2. **The AWS Price List adapter (Phase 8).** The `PricingProvider` protocol is the right
+   seam and `tests/contract/` already holds a conformance suite with one implementation
+   to run against. Needs credentials to be worth more than a mock.
+3. **Exercise the GitHub integration on a real pull request.** Everything is structurally
+   asserted and nothing has been observed working end to end. Requires the user's
+   authorisation - it is an outward-facing action.
 
-* `docs/actual-cost-feedback.md` carries the attribution caveats. Reuse that wording
-  rather than inventing new claims about billing accuracy.
-* The three "never" properties to preserve in any final edit: unknowns are never zero,
-  a BLOCK is never approvable, and accuracy never blocks a build.
+Standing constraints that must survive any further work:
 
-Commit message: `docs: complete portfolio documentation and final review`
+* an unknown cost is never zero, and never hidden;
+* a `BLOCK` is never approvable;
+* accuracy feedback never blocks a build;
+* nothing in this repository obtains AWS credentials or deploys anything.
+
+`scripts/check_workflows.py`, `tests/unit/test_workflows.py` and
+`tests/unit/test_approvals.py` are what enforce the last three. Extend those rather than
+adding a fourth mechanism.
