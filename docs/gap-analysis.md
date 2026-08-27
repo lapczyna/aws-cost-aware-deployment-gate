@@ -123,6 +123,12 @@ the front door to the adapter that was not built.
   artifact, a budget evaluated against changes it could not affect, and usage overrides
   silently ignored for CDK resources. Each is now pinned by a test; the pattern is that
   every one was a *wiring* fault between two correct components.
+* **Two artifact fields were added without bumping the schema version.** `warnings` in
+  Phase 16 and `recommendations` in Phase 10 both changed a document read with
+  `extra="forbid"`, which makes any added field breaking for a strict reader. Nothing
+  surfaced until a pull request adding one was analysed and the comment workflow — which
+  runs the *base branch's* reader — refused it with a bare validation error. The version
+  is now 2, and the rule is written down where the next person will look.
 * **No property-based tests on the feedback arithmetic.** The estimators and the policy
   lattice have Hypothesis coverage; the accuracy quantiles do not.
 * **A structural test asserted a permission set that could not work.** Written up

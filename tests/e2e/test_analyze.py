@@ -16,7 +16,7 @@ from typer.testing import CliRunner
 from cost_gate.adapters.clock import FixedClock
 from cost_gate.cli.analyze import exit_code_for
 from cost_gate.cli.main import app
-from cost_gate.domain.artifact import AnalysisArtifact
+from cost_gate.domain.artifact import ARTIFACT_SCHEMA_VERSION, AnalysisArtifact
 from cost_gate.domain.enums import GateResult
 from cost_gate.exit_codes import ExitCode
 from cost_gate.pipeline import AnalysisError, AnalysisRequest, run_analysis
@@ -261,7 +261,7 @@ class TestTheCommand:
             "json",
         )
         payload = json.loads(result.stdout)
-        assert payload["schema_version"] == "1"
+        assert payload["schema_version"] == ARTIFACT_SCHEMA_VERSION
         assert payload["pricing"]["authoritative"] is False
 
     def test_money_is_a_string_in_the_json(self, templates):

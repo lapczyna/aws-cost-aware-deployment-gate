@@ -236,3 +236,28 @@ privilege split erodes under well-meaning edits, and prose does not stop that.
 The gate runs against `examples/cloudformation/`, a change deliberately built to require
 approval. Failing the build on that would make every pull request here red to demonstrate
 a feature. A consuming repository should use `require_approval` or `block`.
+
+## A pull request that changes the artifact cannot comment on itself
+
+The comment workflow installs the tool from the **base branch**, then validates the
+artifact the *pull request's* code produced. The artifact is read with `extra="forbid"`,
+because it crosses a trust boundary and a smuggled field must be a rejection rather than
+a value riding along.
+
+So a pull request that **adds a field to the artifact** produces a document the base
+branch's reader cannot accept, and the comment step fails. That is correct — refusing an
+unrecognised document is the whole point — but it is worth knowing before it happens:
+
+* the analysis job still runs and still sets the check status;
+* no comment appears until the change is merged;
+* from the next pull request onwards it works normally.
+
+This is the same shape as the `contents: read` problem, and for the same underlying
+reason: `workflow_run` deliberately runs the base branch's code, so a pull request cannot
+change what the privileged half does. Both consequences are the price of that guarantee,
+and it is worth paying.
+
+**Bump `ARTIFACT_SCHEMA_VERSION` when adding a field.** It does not avoid the failure, but
+it turns a bare `ValidationError` into "this report is version 2 and I read version 1",
+which is a diagnosis rather than a puzzle. Version 1 gained `warnings` and
+`recommendations` without a bump; version 2 exists because of it.

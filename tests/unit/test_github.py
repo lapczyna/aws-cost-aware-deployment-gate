@@ -28,6 +28,7 @@ from cost_gate.adapters.github import (
     upsert_comment,
 )
 from cost_gate.adapters.github_http import GitHubHttpApi, validate_repository
+from cost_gate.domain.artifact import ARTIFACT_SCHEMA_VERSION
 from cost_gate.reporting import render_json
 from cost_gate.reporting.markdown import COMMENT_MARKER, render_markdown
 from tests.factories import artifact_with, component
@@ -86,7 +87,7 @@ def report(tmp_path: Path) -> Path:
 
 class TestTheArtifactIsUntrusted:
     def test_a_valid_report_loads(self, report):
-        assert load_untrusted_artifact(report).schema_version == "1"
+        assert load_untrusted_artifact(report).schema_version == ARTIFACT_SCHEMA_VERSION
 
     def test_a_missing_report_is_refused(self, tmp_path):
         with pytest.raises(GitHubError, match="no report"):

@@ -15,6 +15,7 @@ import pytest
 from typer.testing import CliRunner
 
 from cost_gate.cli.main import app
+from cost_gate.domain.artifact import ARTIFACT_SCHEMA_VERSION
 from cost_gate.exit_codes import ExitCode
 
 pytestmark = pytest.mark.unit
@@ -91,7 +92,7 @@ class TestWritingReports:
     def test_the_json_report_parses(self, tmp_path):
         invoke("--scenario", "nat-gateway-development", "--output-dir", str(tmp_path))
         payload = json.loads((tmp_path / "nat-gateway-development.json").read_text("utf-8"))
-        assert payload["schema_version"] == "1"
+        assert payload["schema_version"] == ARTIFACT_SCHEMA_VERSION
 
     def test_written_reports_use_unix_line_endings(self, tmp_path):
         # core.autocrlf is on for this repository; without an explicit newline these
