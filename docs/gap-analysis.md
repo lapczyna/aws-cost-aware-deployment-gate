@@ -10,8 +10,10 @@ list. Where something is missing, the reason is here too.
 
 ### The GitHub integration, since verified
 
-This entry used to say no pull request had ever exercised it. That is no longer true:
-pull requests #1 and #2 ran the whole path, and it found a bug on the first attempt.
+This entry used to say no pull request had ever exercised it. That is no longer true: two
+pull requests ran the whole path, and the first found a bug on its first attempt. (Those
+pull requests are no longer browsable — the repository was recreated before publication to
+purge pre-publication objects, which removed `refs/pull/*`. The commits survive.)
 
 | Stage | Observed |
 |---|---|
