@@ -28,38 +28,45 @@ import-linter. Seven ADRs; the four that constrain everything else:
 All nineteen. Phases 8 and 10 were deferred during the original run and built afterwards,
 which is why they appear out of chronological order.
 
+Every commit hash below was reassigned on 2026-08-27, when the history was rewritten to
+remove a personal email address before the repository was made public. The subjects are
+unchanged, so an older reference can be matched by message rather than by hash.
+
 | Phase | Description | Commit |
 |---|---|---|
-| 0 | Architecture documentation, ADRs, repository scaffolding | `64c862c` |
-| 1 | Project foundation and quality gates | `bad1629` |
-| 1a | Workflow safety checker (fix to Phase 1 CI) | `2a5f6af` |
-| 2 | Domain model and configuration schemas | `0409a6b` |
-| 3 | CloudFormation parser and normalisation | `32464ff` |
-| 4 | Infrastructure change engine | `9b381ec` |
-| 5 | Pricing provider framework | `25f15be` |
-| 6 | Fixed-cost AWS estimators | `e1129a5` |
-| 7 | Usage-based estimators | `43318e6` |
-| 8 | AWS Price List adapter | `0db3692` (PR #5) |
-| 9 | Budget and policy engine | `ae602a8` |
-| 10 | FinOps recommendation engine | `c0af420` (PR #4) |
-| 11 | Reporting, CLI and the end-to-end pipeline | `617ce44`, fixed in `902ec6c` |
-| 12 | Deterministic demo scenarios | `4eb6e63`, packaged in `a5178e4` |
-| 13 | CDK integration | `50cc39e` |
-| 14 | GitHub pull-request integration | `c35aea2` |
-| 15 | Approval and deployment safeguards | `1214314` |
-| 16 | Optional serverless AWS infrastructure (synth only) | `c10f92f` |
-| 17 | Actual-cost feedback prototype | `077aa68` |
-| 18 | Portfolio and production-readiness review | `e1efc11` |
+| 0 | Architecture documentation, ADRs, repository scaffolding | `1aec54e` |
+| 1 | Project foundation and quality gates | `8e8ff38` |
+| 1a | Workflow safety checker (fix to Phase 1 CI) | `182b76f` |
+| 2 | Domain model and configuration schemas | `a046520` |
+| 3 | CloudFormation parser and normalisation | `fb6e1a8` |
+| 4 | Infrastructure change engine | `ac61e3b` |
+| 5 | Pricing provider framework | `0445613` |
+| 6 | Fixed-cost AWS estimators | `e13f8a7` |
+| 7 | Usage-based estimators | `1ffc9c4` |
+| 8 | AWS Price List adapter | `ef3f9bc` (PR #5) |
+| 9 | Budget and policy engine | `4c56907` |
+| 10 | FinOps recommendation engine | `83366b9` (PR #4) |
+| 11 | Reporting, CLI and the end-to-end pipeline | `6efc88c`, fixed in `361b984` |
+| 12 | Deterministic demo scenarios | `72a0519`, packaged in `0abc152` |
+| 13 | CDK integration | `216bb29` |
+| 14 | GitHub pull-request integration | `4704637` |
+| 15 | Approval and deployment safeguards | `fd7ab53` |
+| 16 | Optional serverless AWS infrastructure (synth only) | `173625f` |
+| 17 | Actual-cost feedback prototype | `1b23d7d` |
+| 18 | Portfolio and production-readiness review | `1fcfc14` |
 
-Five pull requests followed the review, each merged through the gate's own CI:
+Five pull requests followed the review, each merged through the gate's own CI. **Those
+pull requests no longer exist**: the repository was deleted and recreated on 2026-08-27 to
+purge pre-publication objects, which took `refs/pull/*` with it. The merge commits below
+are the surviving record, and `git log --first-parent` reads as the same story.
 
-| PR | What | Merge |
+| PR | What | Merge commit |
 |---|---|---|
-| #1 | S3 bucket policies treated as cost-free; **found the missing `contents: read`** | `49acf92` |
-| #2 | CloudWatch alarms priced | `3bf3c5c` |
-| #3 | `validate-config --strict` | `38b613e` |
-| #4 | Recommendation engine (Phase 10) | `c0af420` |
-| #5 | Price List adapter (Phase 8) | `0db3692` |
+| #1 | S3 bucket policies treated as cost-free; **found the missing `contents: read`** | `3e831cb` |
+| #2 | CloudWatch alarms priced | `4e091c6` |
+| #3 | `validate-config --strict` | `79ce213` |
+| #4 | Recommendation engine (Phase 10) | `83366b9` |
+| #5 | Price List adapter (Phase 8) | `ef3f9bc` |
 
 ## Current state of the repository
 
